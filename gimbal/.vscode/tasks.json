@@ -3,8 +3,16 @@
     "tasks": [
         {
             "label": "build task",
-            "type": "shell",
-            "command": "compiledb -o build/compile_commands.json make -c mingw32-make -j24",
+            "type": "process",
+            "command": "cmd.exe",
+            "args": [
+                "/d",
+                "/c",
+                "\"${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe\" -Bnkw -j24 > \"build\\compile_commands.make.log\" 2>&1 && compiledb -f -o \"build\\compile_commands.json\" -p \"build\\compile_commands.make.log\""
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -13,8 +21,14 @@
         },
         {
             "label": "build task (make only)",
-            "type": "shell",
-            "command": "mingw32-make -j24",
+            "type": "process",
+            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "args": [
+                "-j24"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -24,7 +38,10 @@
         {
             "label": "download dap",
             "type": "shell",
-            "command": "mingw32-make -j24; mingw32-make download_dap",
+            "command": "& '${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe' -j24; if ($LASTEXITCODE -eq 0) { & '${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe' download_dap }",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
@@ -33,7 +50,10 @@
         {
             "label": "download jlink",
             "type": "shell",
-            "command": "mingw32-make -j24; mingw32-make download_jlink",
+            "command": "& '${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe' -j24; if ($LASTEXITCODE -eq 0) { & '${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe' download_jlink }",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": false
