@@ -15,12 +15,10 @@
         "bsp_log.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled",
-    "C_Cpp.intelliSenseEngine": "default",
-    "C_Cpp.intelliSenseCacheSize": 512,
     "cortex-debug.armToolchainPath": "",
-    "cortex-debug.armToolchainPath": "${workspaceFolder}\\tools\\gcc-arm-none-eabi-10.3-2021.10\\bin",
-  "cortex-debug.openocdPath": "${workspaceFolder}\\tools\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
-  "makefile.makePath": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+    "cortex-debug.armToolchainPath": "C:\\ClionToolchains\\gcc-arm-none-eabi-10.3-2021.10\\bin",
+  "cortex-debug.openocdPath": "C:\\ClionToolchains\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
+  "makefile.makePath": "C:\\ClionToolchains\\mingw64\\bin\\mingw32-make.exe",
   "cortex-debug.variableUseNaturalFormat": true,
   "cmake.cmakePath": "cube-cmake",
   "cmake.configureArgs": [
