@@ -245,7 +245,7 @@ void ChassisTask()
         chassis_cmd_recv.wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE:
-        chassis_cmd_recv.wz = 200;
+        chassis_cmd_recv.wz = 400;
         break;
     default:
         break;

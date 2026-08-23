@@ -17,6 +17,7 @@ static Publisher_t *gimbal_pub;                   // 云台应用消息发布者
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
 static Gimbal_Upload_Data_s gimbal_feedback_data; // 回传给cmd的云台状态信息
 static Gimbal_Ctrl_Cmd_s gimbal_cmd_recv;         // 来自cmd的控制信息
+float yaw_rpm; // 云台yaw电机转速,单位rpm
 
 static BMI088Instance *bmi088; // 云台IMU
 void GimbalInit()
@@ -120,5 +121,6 @@ void GimbalTask()
     yaw_feedback_send.online = 1;
 
     CANCommSend(yaw_can_comm, (uint8_t *)&yaw_feedback_send);
+    yaw_rpm = (yaw_motor->measure.speed_aps)/6.0f;
     
 }

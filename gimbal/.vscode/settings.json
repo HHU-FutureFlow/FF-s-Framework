@@ -35,5 +35,6 @@
     ],
     "cmake.configureArgs": [
       "-DCMAKE_COMMAND=cube-cmake"
-    ]
+    ],
+    "git.ignoreLimitWarning": true
 }
