@@ -12,6 +12,7 @@
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
 #include "chassis.h"
 #include "gimbal.h"
+#include "shoot.h"
 #endif
 
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
@@ -38,6 +39,7 @@ void RobotInit()
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisInit();
     GimbalInit();
+    ShootInit();
 #endif
 
     OSTaskInit(); // 创建基础任务
@@ -57,6 +59,7 @@ void RobotTask()
 #if defined(ONE_BOARD) || defined(CHASSIS_BOARD)
     ChassisTask();
     GimbalTask();
+    ShootTask();
 #endif
 
 }

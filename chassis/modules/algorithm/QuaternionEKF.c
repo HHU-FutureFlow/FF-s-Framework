@@ -6,7 +6,7 @@
  * @date    2022/3/8
  * @brief   attitude update with gyro bias estimate and chi-square test
  ******************************************************************************
- * @attention
+ * @attentioncmake
  * 1st order LPF transfer function:
  *     1
  *  ———————

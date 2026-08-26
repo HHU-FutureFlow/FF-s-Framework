@@ -75,6 +75,17 @@ function Get-ArmGcc {
     Find-Executable -Name "arm-none-eabi-gcc.exe" -EnvironmentVariables @("ARM_GCC_PATH") -BundlePatterns @("gnu-tools-for-stm32\*\bin\arm-none-eabi-gcc.exe")
 }
 
+function Get-BundledTool {
+    param([Parameter(Mandatory)][string]$RelativePath)
+
+    $candidate = Join-Path $ProjectRoot $RelativePath
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $candidate).Path
+    }
+
+    return $null
+}
+
 function Reset-StaleCMakeCache {
     $cachePath = Join-Path $BuildDirectory "CMakeCache.txt"
     if (-not (Test-Path -LiteralPath $cachePath)) {
@@ -151,7 +162,10 @@ function Clean-Project {
 
 function Download-WithOpenOcd {
     Build-Project
-    $openOcd = Find-Executable -Name "openocd.exe" -EnvironmentVariables @("OPENOCD_PATH")
+    $openOcd = Get-BundledTool -RelativePath "tools\OpenOCD-20231002-0.12.0\bin\openocd.exe"
+    if (-not $openOcd) {
+        $openOcd = Find-Executable -Name "openocd.exe" -EnvironmentVariables @("OPENOCD_PATH")
+    }
     $config = Join-Path $ProjectRoot "openocd_dap.cfg"
     $binary = Join-Path $BuildDirectory "$TargetName.bin"
     & $openOcd -f $config -c init -c "reset halt" -c "flash write_image erase `"$binary`" 0x08000000" -c reset -c shutdown

@@ -168,6 +168,7 @@ Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT_ASM_ARMv7M.s
 # binaries
 #######################################
 PREFIX = arm-none-eabi-
+OPENOCD ?= tools/OpenOCD-20231002-0.12.0/bin/openocd.exe
 # The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
 # either it can be added to the PATH environment variable.
 ifdef GCC_PATH
@@ -350,7 +351,7 @@ clean:
 # download directl without debugging
 #######################################
 download_dap:
-	openocd -f openocd_dap.cfg -c init -c "reset halt" -c "flash write_image erase $(BUILD_DIR)/$(TARGET).bin 0x08000000" -c reset -c shutdown
+	"$(OPENOCD)" -f openocd_dap.cfg -c init -c "reset halt" -c "flash write_image erase $(BUILD_DIR)/$(TARGET).bin 0x08000000" -c reset -c shutdown
 download_jlink:
 	JFlash -openprj'stm32.jflash' -open'$(BUILD_DIR)/$(TARGET).hex',0x8000000 -auto -startapp -exit
 

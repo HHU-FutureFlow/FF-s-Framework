@@ -220,8 +220,10 @@ typedef struct
 
 typedef struct
 {
-    // code to go here
-    // ...
+    float loader_angle;
+    float loader_speed;
+    float loader_current;
+    
 } Shoot_Upload_Data_s;
 
 typedef struct

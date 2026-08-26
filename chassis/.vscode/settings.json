@@ -15,23 +15,21 @@
         "bsp_log.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled",
-    "cortex-debug.armToolchainPath": "",
-    "cortex-debug.armToolchainPath": "C:\\ClionToolchains\\gcc-arm-none-eabi-10.3-2021.10\\bin",
-  "cortex-debug.openocdPath": "C:\\ClionToolchains\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
-  "makefile.makePath": "C:\\ClionToolchains\\mingw64\\bin\\mingw32-make.exe",
-  "cortex-debug.variableUseNaturalFormat": true,
-  "cmake.cmakePath": "cube-cmake",
-  "cmake.configureArgs": [
-    "-DCMAKE_COMMAND=cube-cmake"
-  ],
-  "cmake.preferredGenerators": [
-    "MinGW Makefiles"
-  ],
-  "stm32cube-ide-clangd.path": "cube",
-  "stm32cube-ide-clangd.arguments": [
-    "starm-clangd",
-    "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc*",
-    "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++*"
-  ],
-  "git.ignoreLimitWarning": true
+    "cortex-debug.variableUseNaturalFormat": true,
+    "mcu-debug.debug-tracker-vscode.debugLevel": 2,
+    "task.allowAutomaticTasks": "on",
+    "cmake.cmakePath": "cube-cmake",
+    "cmake.configureArgs": [
+        "-DCMAKE_COMMAND=cube-cmake"
+    ],
+    "cmake.preferredGenerators": [
+        "MinGW Makefiles"
+    ],
+    "stm32cube-ide-clangd.path": "cube",
+    "stm32cube-ide-clangd.arguments": [
+        "starm-clangd",
+        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc*",
+        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++*"
+    ],
+    "git.ignoreLimitWarning": true
 }
