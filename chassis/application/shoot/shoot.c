@@ -1,4 +1,5 @@
 #include "shoot.h"
+#include "motor_def.h"
 #include "robot_def.h"
 
 #include "dji_motor.h"
@@ -34,22 +35,22 @@ void ShootInit()
         .controller_param_init_config = {
             .angle_PID = {
                 // 如果启用位置环来控制发弹,需要较大的I值保证输出力矩的线性度否则出现接近拨出的力矩大幅下降
-                .Kp = 0, // 10
+                .Kp = 5, // 10
                 .Ki = 0,
-                .Kd = 0,
+                .Kd = 0.5,
                 .MaxOut = 200,
             },
             .speed_PID = {
-                .Kp = 0, // 10
-                .Ki = 0, // 1
+                .Kp = 5, // 10
+                .Ki = 0.5, // 1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
-                .IntegralLimit = 5000,
-                .MaxOut = 5000,
+                .IntegralLimit = 6000,
+                .MaxOut = 6000,
             },
             .current_PID = {
-                .Kp = 0, // 0.7
-                .Ki = 0, // 0.1
+                .Kp = 0.5, // 0.7
+                .Ki = 0.1, // 0.1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
                 .IntegralLimit = 5000,
@@ -62,7 +63,7 @@ void ShootInit()
             .close_loop_type = CURRENT_LOOP | SPEED_LOOP,
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL, // 注意方向设置为拨盘的拨出的击发方向
         },
-        .motor_type = M2006 // 英雄使用m3508
+        .motor_type = M3508 // 英雄使用m3508
     };
     loader = DJIMotorInit(&loader_config);
     CANComm_Init_Config_s shoot_comm_conf = 
