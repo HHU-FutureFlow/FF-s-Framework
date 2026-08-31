@@ -16,7 +16,7 @@ static Publisher_t *shoot_pub;
 static Shoot_Ctrl_Cmd_s shoot_cmd_recv; // 来自cmd的发射控制信息
 static Subscriber_t *shoot_sub;
 static Shoot_Upload_Data_s shoot_feedback_data; // 来自cmd的发射控制信息
-
+float friction_l_speed;
 
 void ShootInit()
 {
@@ -125,8 +125,8 @@ void ShootTask()
             DJIMotorSetRef(friction_r, 0);
             break;
         default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
-            DJIMotorSetRef(friction_l, 10000);
-            DJIMotorSetRef(friction_r, 10000);
+            DJIMotorSetRef(friction_l, 40000);
+            DJIMotorSetRef(friction_r, 40000);
             break;
         }
     }
@@ -153,4 +153,5 @@ void ShootTask()
 
     // 反馈数据,目前暂时没有要设定的反馈数据,后续可能增加应用离线监测以及卡弹反馈
     PubPushMessage(shoot_pub, (void *)&shoot_feedback_data);
+    friction_l_speed = friction_l->measure.speed_aps;
 }
