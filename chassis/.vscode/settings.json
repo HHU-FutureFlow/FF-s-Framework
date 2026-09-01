@@ -18,18 +18,9 @@
     "cortex-debug.variableUseNaturalFormat": true,
     "mcu-debug.debug-tracker-vscode.debugLevel": 2,
     "task.allowAutomaticTasks": "on",
-    "cmake.cmakePath": "cube-cmake",
-    "cmake.configureArgs": [
-        "-DCMAKE_COMMAND=cube-cmake"
-    ],
+    "cmake.cmakePath": "C:/mingw64/bin/cmake.exe",
     "cmake.preferredGenerators": [
-        "MinGW Makefiles"
-    ],
-    "stm32cube-ide-clangd.path": "cube",
-    "stm32cube-ide-clangd.arguments": [
-        "starm-clangd",
-        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-gcc*",
-        "--query-driver=${env:CUBE_BUNDLE_PATH}/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-g++*"
+        "Ninja"
     ],
     "git.ignoreLimitWarning": true
 }

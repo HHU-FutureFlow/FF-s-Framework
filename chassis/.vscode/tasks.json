@@ -2,11 +2,43 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "configure task",
+            "type": "process",
+            "command": "C:/mingw64/bin/cmake.exe",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build",
+                "-G",
+                "Ninja",
+                "-DCMAKE_BUILD_TYPE=Debug",
+                "-DCMAKE_MAKE_PROGRAM=C:/mingw64/bin/ninja.exe",
+                "-DCMAKE_C_COMPILER=D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gcc.exe",
+                "-DCMAKE_ASM_COMPILER=D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gcc.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
             "label": "build task",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "C:/mingw64/bin/cmake.exe",
             "args": [
-                "-j24"
+                "--build",
+                "${workspaceFolder}/build",
+                "--parallel"
+            ],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "configure task"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -23,63 +55,14 @@
             }
         },
         {
-            "label": "debug: prepare workspace",
+            "label": "clean task",
             "type": "process",
-            "command": "powershell.exe",
+            "command": "C:/mingw64/bin/cmake.exe",
             "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}\\scripts\\prepare-cortex-debug.ps1"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "debug: prepare workspace on folder open",
-            "type": "process",
-            "command": "powershell.exe",
-            "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}\\scripts\\prepare-cortex-debug.ps1",
-                "-Quiet",
-                "-SkipToolValidation",
-                "-AggressiveStateReset"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "runOptions": {
-                "runOn": "folderOpen"
-            },
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "never",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "debug: cleanup stale servers",
-            "type": "process",
-            "command": "powershell.exe",
-            "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}\\scripts\\cleanup-debug-servers.ps1"
+                "--build",
+                "${workspaceFolder}/build",
+                "--target",
+                "clean"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -95,10 +78,30 @@
             "label": "debug preflight",
             "dependsOrder": "sequence",
             "dependsOn": [
-                "debug: prepare workspace",
                 "build task"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "debug: cleanup stale servers",
+            "type": "process",
+            "command": "powershell.exe",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/cleanup-debug-servers.ps1"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
         },
         {
             "label": "debug: list connected probes",
@@ -109,7 +112,7 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\list-debug-probes.ps1"
+                "${workspaceFolder}/scripts/list-debug-probes.ps1"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -124,36 +127,11 @@
         {
             "label": "debug: probe test (CMSIS-DAP)",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
+            "command": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
             "args": [
                 "-d2",
                 "-f",
-                "${workspaceFolder}\\openocd_dap.cfg",
-                "-c",
-                "init",
-                "-c",
-                "reset halt",
-                "-c",
-                "shutdown"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [],
-            "presentation": {
-                "reveal": "always",
-                "panel": "dedicated",
-                "clear": true
-            }
-        },
-        {
-            "label": "debug: probe test (J-Link)",
-            "type": "process",
-            "command": "${workspaceFolder}\\tools\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
-            "args": [
-                "-d2",
-                "-f",
-                "${workspaceFolder}\\openocd_jlink.cfg",
+                "${workspaceFolder}/openocd_dap.cfg",
                 "-c",
                 "init",
                 "-c",
@@ -174,11 +152,11 @@
         {
             "label": "debug: probe test (ST-Link)",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\OpenOCD-20231002-0.12.0\\bin\\openocd.exe",
+            "command": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
             "args": [
                 "-d2",
                 "-f",
-                "${workspaceFolder}\\openocd_stlink.cfg",
+                "${workspaceFolder}/openocd_stlink.cfg",
                 "-c",
                 "init",
                 "-c",
@@ -199,9 +177,24 @@
         {
             "label": "download dap",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
             "args": [
-                "download_dap"
+                "-f",
+                "${workspaceFolder}/openocd_dap.cfg",
+                "-c",
+                "init",
+                "-c",
+                "reset halt",
+                "-c",
+                "flash write_image erase \"${workspaceFolder}/build/basic_framework.bin\" 0x08000000",
+                "-c",
+                "reset",
+                "-c",
+                "shutdown"
+            ],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "build task"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -209,11 +202,26 @@
             "problemMatcher": []
         },
         {
-            "label": "download jlink",
+            "label": "download stlink",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
             "args": [
-                "download_jlink"
+                "-f",
+                "${workspaceFolder}/openocd_stlink.cfg",
+                "-c",
+                "init",
+                "-c",
+                "reset halt",
+                "-c",
+                "flash write_image erase \"${workspaceFolder}/build/basic_framework.bin\" 0x08000000",
+                "-c",
+                "reset",
+                "-c",
+                "shutdown"
+            ],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "build task"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
