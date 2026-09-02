@@ -108,8 +108,8 @@ void GimbalTask()
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
     gimbal_cmd_recv.pitch = LimitPitchAngle(gimbal_cmd_recv.pitch);
     yaw_cmd_send.yaw_ref = gimbal_cmd_recv.yaw;
-    yaw_cmd_send.yaw_angle = gimba_IMU_data->YawTotalAngle;
-    yaw_cmd_send.yaw_gyro = gimba_IMU_data->Gyro[2];
+    yaw_cmd_send.yaw_angle = GYRO2GIMBAL_DIR_YAW * gimba_IMU_data->YawTotalAngle;
+    yaw_cmd_send.yaw_gyro = GYRO2GIMBAL_DIR_YAW * gimba_IMU_data->Gyro[2];
     yaw_cmd_send.mode = (uint8_t)gimbal_cmd_recv.gimbal_mode;
     yaw_cmd_send.enable =gimbal_cmd_recv.gimbal_mode != GIMBAL_ZERO_FORCE;
 

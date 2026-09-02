@@ -168,7 +168,14 @@ function Download-WithOpenOcd {
     }
     $config = Join-Path $ProjectRoot "openocd_dap.cfg"
     $binary = Join-Path $BuildDirectory "$TargetName.bin"
-    & $openOcd -f $config -c init -c "reset halt" -c "flash write_image erase `"$binary`" 0x08000000" -c reset -c shutdown
+    if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) {
+        throw "Firmware binary not found: $binary"
+    }
+
+    # OpenOCD treats backslashes in Tcl command arguments as escapes. The
+    # script runs from the project root, so a relative path avoids that issue.
+    $openOcdCommand = "flash write_image erase build/$TargetName.bin 0x08000000"
+    & $openOcd -f $config -c init -c "reset halt" -c $openOcdCommand -c reset -c shutdown
     if ($LASTEXITCODE -ne 0) {
         throw "OpenOCD download failed with exit code: $LASTEXITCODE"
     }

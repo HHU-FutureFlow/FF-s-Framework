@@ -38,9 +38,7 @@
   - IMU Pitch 使用度数时，这个范围只有约 `0.55` 度，鼠标控制会几乎立即触发限位。
   - 具体范围必须结合机械限位和实机零位确认，不能直接把试验值当作最终值。
 - 键盘底盘映射公式存在逻辑错误：
-  - 当前公式中 `A` 键没有产生有效的独立横向控制。
-  - `S` 键同时参与两个轴的计算。
-- 键鼠模式没有明确设置 `chassis_mode` 和 `gimbal_mode`，可能继承之前状态或保持在零力模式。
+\
 - C 键虽然会更新 `chassis_speed_buff`，但 `chassis` 工程当前没有使用该字段进行速度缩放，因此速度档位实际上不生效。
 - `chassis/application/chassis/chassis.c` 的 `CHASSIS_ZERO_FORCE` 分支调用 `DJIMotorEnable()`，之后仍继续计算并下发参考值，急停/零力逻辑不正确。
 
