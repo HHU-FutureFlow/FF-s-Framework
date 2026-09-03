@@ -14,6 +14,55 @@ static Yaw_Ctrl_Cmd_s yaw_cmd_recv;
 static Yaw_Upload_Data_s yaw_feedback_send;
 static float yaw_speed_feedback_deg_per_sec;
 
+/* Yaw 参考值斜坡限速参数,防止 90° 这类大阶跃直接饱和电流产生冲击异响.
+ * 需结合实机运动能力标定,这里的数值为较保守的初始值. */
+#define YAW_REF_MAX_SPEED 150.0f  // 参考最大变化速度,单位 deg/s
+#define YAW_REF_MAX_ACCEL 600.0f  // 参考最大加速度,单位 deg/s^2
+#define YAW_SETTLE_ERR_DEG 0.5f   // 判断 Yaw 是否已进入稳定区, 单位 deg
+
+static float yaw_ref_ramp_out;
+static float yaw_ref_ramp_speed;
+static uint8_t yaw_ref_ramp_init;
+
+/* 重置斜坡状态, 停止/离线/零力矩模式下恢复初始化, 下次启用时从当前目标开始 */
+static void RampYawRefReset(void)
+{
+    yaw_ref_ramp_init = 0;
+    yaw_ref_ramp_speed = 0.0f;
+}
+
+static float RampYawRef(float target)
+{
+    const float dt = 0.005f; // GimbalTask 运行于 200Hz
+
+    if (!yaw_ref_ramp_init)
+    {
+        yaw_ref_ramp_out = target;
+        yaw_ref_ramp_speed = 0.0f;
+        yaw_ref_ramp_init = 1;
+        return yaw_ref_ramp_out;
+    }
+
+    /* 限速 */
+    float target_speed = (target - yaw_ref_ramp_out) / dt;
+    if (target_speed > YAW_REF_MAX_SPEED)
+        target_speed = YAW_REF_MAX_SPEED;
+    if (target_speed < -YAW_REF_MAX_SPEED)
+        target_speed = -YAW_REF_MAX_SPEED;
+
+    /* 限加速度 */
+    float speed_step = target_speed - yaw_ref_ramp_speed;
+    float max_speed_step = YAW_REF_MAX_ACCEL * dt;
+    if (speed_step > max_speed_step)
+        speed_step = max_speed_step;
+    if (speed_step < -max_speed_step)
+        speed_step = -max_speed_step;
+
+    yaw_ref_ramp_speed += speed_step;
+    yaw_ref_ramp_out += yaw_ref_ramp_speed * dt;
+    return yaw_ref_ramp_out;
+}
+
 // Standalone debug symbols for VarScope.这里是为了调参临时创建的调试变量，方便Varscope监视。
 volatile float yaw_debug_angle_pid_ref;
 volatile float yaw_debug_angle_pid_measure;
@@ -87,15 +136,16 @@ void GimbalInit()
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 100,
 
-                .MaxOut = 500,
+                .MaxOut = 150, // 500->150,降低速度参考上限,避免阶跃时电机满电流冲击
             },
             .speed_PID = {
-                .Kp = 60, 
-                .Ki = 20, 
+                .Kp = 30, // 60->30,配合 CAN 链路反馈延迟降低增益
+                .Ki = 5,  // 20->5,削弱积分堆积,防止悬停时积分残留过大
                 .Kd = 0,
+                .DeadBand = 1.0, // 新增:悬停时进入死区,避免持续输出力矩
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .IntegralLimit = 3000,
-                .MaxOut = 20000,
+                .IntegralLimit = 1000, // 3000->1000
+                .MaxOut = 10000,       // 20000->10000,电流封顶,避免撞到 GM6020 协议上限 16384
             },
             .other_angle_feedback_ptr = &yaw_cmd_recv.yaw_angle,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
@@ -136,6 +186,10 @@ void GimbalTask()
     if (!CANCommIsOnline(yaw_can_comm))
     {
         DJIMotorStop(yaw_motor);
+        /* 离线/停止时清零两级 PID 积分, 避免恢复时积分残留导致异响 */
+        yaw_motor->motor_controller.angle_PID.Iout = 0.0f;
+        yaw_motor->motor_controller.speed_PID.Iout = 0.0f;
+        RampYawRefReset();
 
         yaw_feedback_send.yaw_motor_single_round_angle =
             yaw_motor->measure.angle_single_round;
@@ -155,6 +209,10 @@ void GimbalTask()
         yaw_cmd_recv.mode == GIMBAL_ZERO_FORCE)
     {
         DJIMotorStop(yaw_motor);
+        /* 停止/零力矩时清零积分并重置斜坡, 避免重新启用时冲击 */
+        yaw_motor->motor_controller.angle_PID.Iout = 0.0f;
+        yaw_motor->motor_controller.speed_PID.Iout = 0.0f;
+        RampYawRefReset();
     }
     else
     {
@@ -163,7 +221,15 @@ void GimbalTask()
         DJIMotorChangeFeed(yaw_motor, ANGLE_LOOP, OTHER_FEED);
         DJIMotorChangeFeed(yaw_motor, SPEED_LOOP, OTHER_FEED);
 
-        DJIMotorSetRef(yaw_motor, yaw_cmd_recv.yaw_ref);
+        /* 目标输入先过斜坡限速/限加速, 防止 90° 阶跃直接撞硬限幅 */
+        DJIMotorSetRef(yaw_motor, RampYawRef(yaw_cmd_recv.yaw_ref));
+
+        /* 接近目标(悬停)时清零速度环积分, 避免积分残留导致持续力矩和嗡嗡声 */
+        if (yaw_motor->motor_controller.angle_PID.Err < YAW_SETTLE_ERR_DEG &&
+            yaw_motor->motor_controller.angle_PID.Err > -YAW_SETTLE_ERR_DEG)
+        {
+            yaw_motor->motor_controller.speed_PID.Iout = 0.0f;
+        }
     }
 
     yaw_feedback_send.yaw_motor_single_round_angle =
