@@ -12,6 +12,56 @@ static CANCommInstance *yaw_can_comm;
 
 static Yaw_Ctrl_Cmd_s yaw_cmd_recv;
 static Yaw_Upload_Data_s yaw_feedback_send;
+static float yaw_speed_feedback_deg_per_sec;
+
+// Standalone debug symbols for VarScope.这里是为了调参临时创建的调试变量，方便Varscope监视。
+volatile float yaw_debug_angle_pid_ref;
+volatile float yaw_debug_angle_pid_measure;
+volatile float yaw_debug_angle_pid_err;
+volatile float yaw_debug_angle_pid_pout;
+volatile float yaw_debug_angle_pid_iout;
+volatile float yaw_debug_angle_pid_dout;
+volatile float yaw_debug_angle_pid_output;
+volatile float yaw_debug_speed_pid_ref;
+volatile float yaw_debug_speed_pid_measure;
+volatile float yaw_debug_speed_pid_err;
+volatile float yaw_debug_speed_pid_pout;
+volatile float yaw_debug_speed_pid_iout;
+volatile float yaw_debug_speed_pid_dout;
+volatile float yaw_debug_speed_pid_output;
+volatile float yaw_debug_motor_speed_aps;
+volatile float yaw_debug_motor_current;
+volatile float yaw_debug_motor_angle_single_round;
+volatile float yaw_debug_motor_total_angle;
+volatile float yaw_debug_gyro_deg_per_sec;
+
+static void UpdateYawDebugData()
+{
+    if (yaw_motor == NULL)
+        return;
+
+    yaw_debug_angle_pid_ref = yaw_motor->motor_controller.angle_PID.Ref;
+    yaw_debug_angle_pid_measure = yaw_motor->motor_controller.angle_PID.Measure;
+    yaw_debug_angle_pid_err = yaw_motor->motor_controller.angle_PID.Err;
+    yaw_debug_angle_pid_pout = yaw_motor->motor_controller.angle_PID.Pout;
+    yaw_debug_angle_pid_iout = yaw_motor->motor_controller.angle_PID.Iout;
+    yaw_debug_angle_pid_dout = yaw_motor->motor_controller.angle_PID.Dout;
+    yaw_debug_angle_pid_output = yaw_motor->motor_controller.angle_PID.Output;
+
+    yaw_debug_speed_pid_ref = yaw_motor->motor_controller.speed_PID.Ref;
+    yaw_debug_speed_pid_measure = yaw_motor->motor_controller.speed_PID.Measure;
+    yaw_debug_speed_pid_err = yaw_motor->motor_controller.speed_PID.Err;
+    yaw_debug_speed_pid_pout = yaw_motor->motor_controller.speed_PID.Pout;
+    yaw_debug_speed_pid_iout = yaw_motor->motor_controller.speed_PID.Iout;
+    yaw_debug_speed_pid_dout = yaw_motor->motor_controller.speed_PID.Dout;
+    yaw_debug_speed_pid_output = yaw_motor->motor_controller.speed_PID.Output;
+
+    yaw_debug_motor_speed_aps = yaw_motor->measure.speed_aps;
+    yaw_debug_motor_current = yaw_motor->measure.real_current;
+    yaw_debug_motor_angle_single_round = yaw_motor->measure.angle_single_round;
+    yaw_debug_motor_total_angle = yaw_motor->measure.total_angle;
+    yaw_debug_gyro_deg_per_sec = yaw_speed_feedback_deg_per_sec;
+}
 
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
 static Subscriber_t *gimbal_sub;                  // cmd控制消息订阅者
@@ -49,7 +99,7 @@ void GimbalInit()
             },
             .other_angle_feedback_ptr = &yaw_cmd_recv.yaw_angle,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
-            .other_speed_feedback_ptr = &yaw_cmd_recv.yaw_gyro,
+            .other_speed_feedback_ptr = &yaw_speed_feedback_deg_per_sec,
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
@@ -93,11 +143,13 @@ void GimbalTask()
         yaw_feedback_send.yaw_speed = yaw_motor->measure.speed_aps;
         yaw_feedback_send.online = 0;
 
+        UpdateYawDebugData();
         CANCommSend(yaw_can_comm, (uint8_t *)&yaw_feedback_send);
         return;
     }
 
     yaw_cmd_recv = *(Yaw_Ctrl_Cmd_s *)CANCommGet(yaw_can_comm);
+    yaw_speed_feedback_deg_per_sec = yaw_cmd_recv.yaw_gyro * RAD_2_DEGREE;
 
     if (!yaw_cmd_recv.enable ||
         yaw_cmd_recv.mode == GIMBAL_ZERO_FORCE)
@@ -122,5 +174,6 @@ void GimbalTask()
 
     CANCommSend(yaw_can_comm, (uint8_t *)&yaw_feedback_send);
     yaw_rpm = (yaw_motor->measure.speed_aps)/6.0f;
+    UpdateYawDebugData();
     
 }
