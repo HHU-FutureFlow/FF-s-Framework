@@ -209,8 +209,7 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * 300 - rc_data[TEMP].key[KEY_PRESS].a * 300; // D/A控制横移
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 300 - rc_data[TEMP].key[KEY_PRESS].s * 300; // W/S控制前后
+    float keyboard_speed;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -275,6 +274,16 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_speed_buff = 100;
         break;
     }
+
+    keyboard_speed = KEYBOARD_CHASSIS_BASE_SPEED *
+                     (float)chassis_cmd_send.chassis_speed_buff * 0.01f;
+    if (rc_data[TEMP].key[KEY_PRESS].shift)
+        keyboard_speed *= KEYBOARD_SHIFT_SPEED_SCALE;
+
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].a * keyboard_speed;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].s * keyboard_speed;
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量
     {
     case 1:

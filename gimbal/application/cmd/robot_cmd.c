@@ -251,6 +251,7 @@ static void RemoteControlSet()
 static void MouseKeySet()
 {
     uint8_t key_count;
+    float keyboard_speed;
 
     // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?7
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],底盘跟随云台
@@ -263,9 +264,6 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
         gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
     }
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * 300 - rc_data[TEMP].key[KEY_PRESS].a * 300; // D/A控制横移
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * 300 - rc_data[TEMP].key[KEY_PRESS].s * 300; // W/S控制前后
-
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
 
@@ -341,6 +339,16 @@ static void MouseKeySet()
     }
 
     key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G]; // 切换发弹许可模式，上电后默认关闭发弹，按G后解锁发弹。
+
+    keyboard_speed = KEYBOARD_CHASSIS_BASE_SPEED *
+                     (float)chassis_cmd_send.chassis_speed_buff * 0.01f;
+    if (rc_data[TEMP].key[KEY_PRESS].shift)
+        keyboard_speed *= KEYBOARD_SHIFT_SPEED_SCALE;
+
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].a * keyboard_speed;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].s * keyboard_speed;
 
     if (key_count != keyboard_shoot_last_key_count)
         keyboard_shoot_allowed = !keyboard_shoot_allowed;
