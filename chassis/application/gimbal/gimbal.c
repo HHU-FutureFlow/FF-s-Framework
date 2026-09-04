@@ -31,6 +31,7 @@ volatile float yaw_debug_speed_pid_dout;
 volatile float yaw_debug_speed_pid_output;
 volatile float yaw_debug_motor_speed_aps;
 volatile float yaw_debug_motor_current;
+volatile uint16_t yaw_debug_motor_ecd;
 volatile float yaw_debug_motor_angle_single_round;
 volatile float yaw_debug_motor_total_angle;
 volatile float yaw_debug_gyro_deg_per_sec;
@@ -58,6 +59,7 @@ static void UpdateYawDebugData()
 
     yaw_debug_motor_speed_aps = yaw_motor->measure.speed_aps;
     yaw_debug_motor_current = yaw_motor->measure.real_current;
+    yaw_debug_motor_ecd = yaw_motor->measure.ecd;
     yaw_debug_motor_angle_single_round = yaw_motor->measure.angle_single_round;
     yaw_debug_motor_total_angle = yaw_motor->measure.total_angle;
     yaw_debug_gyro_deg_per_sec = yaw_speed_feedback_deg_per_sec;
@@ -76,7 +78,7 @@ void GimbalInit()
     Motor_Init_Config_s yaw_config = {
         .can_init_config = {
             .can_handle = &hcan2,
-            .tx_id = 5,
+            .tx_id = 1,
         },
         .controller_param_init_config = {
             .angle_PID = {
@@ -91,7 +93,7 @@ void GimbalInit()
             },
             .speed_PID = {
                 .Kp = 60, 
-                .Ki = 0, 
+                .Ki = 10, 
                 .Kd = 0,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 3000,

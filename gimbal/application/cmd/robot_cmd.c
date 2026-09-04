@@ -68,6 +68,9 @@ static Robot_Status_e robot_state; // 机器人整体工作状态
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
+static uint8_t keyboard_shoot_allowed;
+static uint8_t keyboard_shoot_last_key_count;
+volatile uint8_t keyboard_shoot_fire_active;
 #if YAW_STEP_TEST_ENABLE
 static void YawStepTestSet(uint8_t keyboard_mode)
 {
@@ -336,6 +339,35 @@ static void MouseKeySet()
     }
 }
 
+static void KeyboardShootSet(uint8_t keyboard_mode)
+{
+    uint8_t key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G];
+
+    if (keyboard_mode && key_count != keyboard_shoot_last_key_count)
+        keyboard_shoot_allowed = !keyboard_shoot_allowed;
+    keyboard_shoot_last_key_count = key_count;
+
+    keyboard_shoot_fire_active = 0;
+    if (!keyboard_mode)
+        return;
+
+    if (keyboard_shoot_allowed && rc_data[TEMP].mouse.press_l)
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        shoot_cmd_send.bullet_speed = BULLET_SPEED_NONE;
+        shoot_cmd_send.shoot_rate = 8;
+        keyboard_shoot_fire_active = 1;
+    }
+    else
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+}
+
 /**
  * @brief  紧急停止,包括遥控器左上侧拨轮打满/重要模块离线/双板通信失效等
  *         停止的阈值'300'待修改成合适的值,或改为开关控制.
@@ -360,7 +392,8 @@ static void EmergencyHandler()
     if (switch_is_up(rc_data[TEMP].rc.switch_right))
     {
         robot_state = ROBOT_READY;
-        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        if (!switch_is_up(rc_data[TEMP].rc.switch_left))
+            shoot_cmd_send.shoot_mode = SHOOT_ON;
         LOGINFO("[CMD] reinstate, robot ready");
     }
 }
@@ -390,6 +423,8 @@ void RobotCMDTask()
 #if YAW_STEP_TEST_ENABLE
     YawStepTestSet(switch_is_up(rc_data[TEMP].rc.switch_left));
 #endif
+
+    KeyboardShootSet(switch_is_up(rc_data[TEMP].rc.switch_left));
 
     gimbal_cmd_send.pitch = LimitPitchTarget(gimbal_cmd_send.pitch);
 
