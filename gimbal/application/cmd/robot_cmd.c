@@ -250,6 +250,8 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
+    uint8_t key_count;
+
     // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?7
     if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],底盘跟随云台
     {
@@ -337,22 +339,17 @@ static void MouseKeySet()
 
         break;
     }
-}
 
-static void KeyboardShootSet(uint8_t keyboard_mode)
-{
-    uint8_t key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G];
+    key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G]; // 切换发弹许可模式，上电后默认关闭发弹，按G后解锁发弹。
 
-    if (keyboard_mode && key_count != keyboard_shoot_last_key_count)
+    if (key_count != keyboard_shoot_last_key_count)
         keyboard_shoot_allowed = !keyboard_shoot_allowed;
     keyboard_shoot_last_key_count = key_count;
 
     keyboard_shoot_fire_active = 0;
-    if (!keyboard_mode)
-        return;
-
     if (keyboard_shoot_allowed && rc_data[TEMP].mouse.press_l)
-    {
+    {   
+        // 按住左键开始连续射击，目前射击模式wei'sh
         shoot_cmd_send.shoot_mode = SHOOT_ON;
         shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
@@ -423,8 +420,6 @@ void RobotCMDTask()
 #if YAW_STEP_TEST_ENABLE
     YawStepTestSet(switch_is_up(rc_data[TEMP].rc.switch_left));
 #endif
-
-    KeyboardShootSet(switch_is_up(rc_data[TEMP].rc.switch_left));
 
     gimbal_cmd_send.pitch = LimitPitchTarget(gimbal_cmd_send.pitch);
 
