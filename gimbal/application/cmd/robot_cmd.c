@@ -353,7 +353,6 @@ static void MouseKeySet()
         shoot_cmd_send.shoot_mode = SHOOT_ON;
         shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-        shoot_cmd_send.bullet_speed = BULLET_SPEED_NONE;
         shoot_cmd_send.shoot_rate = 8;
         keyboard_shoot_fire_active = 1;
     }
