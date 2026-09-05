@@ -4,9 +4,15 @@
         {
             "label": "build task",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "powershell.exe",
             "args": [
-                "-j24"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\scripts\\project.ps1",
+                "-Action",
+                "build"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -198,9 +204,15 @@
         {
             "label": "download dap",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "powershell.exe",
             "args": [
-                "download_dap"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\scripts\\project.ps1",
+                "-Action",
+                "download-dap"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -210,9 +222,15 @@
         {
             "label": "download jlink",
             "type": "process",
-            "command": "${workspaceFolder}\\tools\\mingw64\\bin\\mingw32-make.exe",
+            "command": "powershell.exe",
             "args": [
-                "download_jlink"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\scripts\\project.ps1",
+                "-Action",
+                "download-jlink"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

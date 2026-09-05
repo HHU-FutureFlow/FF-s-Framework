@@ -43,6 +43,9 @@ static Publisher_t *shoot_cmd_pub;           // 发射控制消息发布者
 static Subscriber_t *shoot_feed_sub;         // 发射反馈信息订阅者
 static Shoot_Ctrl_Cmd_s shoot_cmd_send;      // 传递给发射的控制信息
 static Shoot_Upload_Data_s shoot_fetch_data; // 从发射获取的反馈信息
+static uint8_t keyboard_shoot_allowed;
+static uint8_t keyboard_shoot_last_key_count;
+volatile uint8_t keyboard_shoot_fire_active;
 
 static Robot_Status_e robot_state; // 机器人整体工作状态
 
@@ -209,8 +212,9 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w * 300 - rc_data[TEMP].key[KEY_PRESS].s * 300; // 系数待测
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].s * 300 - rc_data[TEMP].key[KEY_PRESS].d * 300;
+    uint8_t key_count;
+
+    float keyboard_speed;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -275,6 +279,16 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_speed_buff = 100;
         break;
     }
+
+    keyboard_speed = KEYBOARD_CHASSIS_BASE_SPEED *
+                     (float)chassis_cmd_send.chassis_speed_buff * 0.01f;
+    if (rc_data[TEMP].key[KEY_PRESS].shift)
+        keyboard_speed *= KEYBOARD_SHIFT_SPEED_SCALE;
+
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].a * keyboard_speed;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].s * keyboard_speed;
     switch (rc_data[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量
     {
     case 1:
@@ -284,6 +298,36 @@ static void MouseKeySet()
     default:
 
         break;
+    }
+
+    key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G];
+    if (key_count != keyboard_shoot_last_key_count)
+        keyboard_shoot_allowed = !keyboard_shoot_allowed;
+    keyboard_shoot_last_key_count = key_count;
+
+    keyboard_shoot_fire_active = 0;
+    if (!keyboard_shoot_allowed)
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+    else if (rc_data[TEMP].mouse.press_l)
+    {
+        // The left mouse button reuses the friction-wheel start action and adds feeding.
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        shoot_cmd_send.shoot_rate = 8;
+        keyboard_shoot_fire_active = 1;
+    }
+    else
+    {
+        // F controls pre-spin; feeding is only enabled by the left mouse button.
+        shoot_cmd_send.shoot_mode = shoot_cmd_send.friction_mode == FRICTION_ON
+                                         ? SHOOT_ON
+                                         : SHOOT_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
     }
 }
 

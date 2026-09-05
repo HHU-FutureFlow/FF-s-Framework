@@ -2,8 +2,8 @@
     "configurations": [
         {
             "name": "STM32F407",
-            "compilerPath": "${workspaceFolder}/tools/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gcc.exe",
-            "cStandard": "c17",
+            "compilerPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gcc.exe",
+            "cStandard": "gnu11",
             "cppStandard": "gnu++14",
             "intelliSenseMode": "linux-gcc-arm",
             "compileCommands": "${workspaceFolder}/build/compile_commands.json"

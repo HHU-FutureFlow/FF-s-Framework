@@ -1,5 +1,16 @@
 // app
 #include "robot_def.h"
+
+// Temporary yaw step test. Set to 0 to remove this test behavior.
+#define YAW_STEP_TEST_ENABLE 1
+#define YAW_STEP_TEST_ANGLE 90.0f
+
+#if YAW_STEP_TEST_ENABLE
+volatile float yaw_test_key_rise;
+volatile float yaw_test_target;
+static uint8_t yaw_test_last_key_count;
+#endif
+
 #include "robot_cmd.h"
 // module
 #include "remote_control.h"
@@ -57,6 +68,26 @@ static Robot_Status_e robot_state; // 机器人整体工作状态
 
 BMI088Instance *bmi088_test; // 云台IMU
 BMI088_Data_t bmi088_data;
+static uint8_t keyboard_shoot_allowed;
+static uint8_t keyboard_shoot_last_key_count;
+volatile uint8_t keyboard_shoot_fire_active;
+#if YAW_STEP_TEST_ENABLE
+static void YawStepTestSet(uint8_t keyboard_mode)
+{
+    uint8_t key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_X];
+
+    yaw_test_key_rise = 0.0f;
+    if (keyboard_mode && key_count != yaw_test_last_key_count)
+    {
+        gimbal_cmd_send.yaw += YAW_STEP_TEST_ANGLE;
+        yaw_test_key_rise = 1.0f;
+    }
+
+    yaw_test_last_key_count = key_count;
+    yaw_test_target = gimbal_cmd_send.yaw;
+}
+#endif
+
 void RobotCMDInit()
 {
     // BMI088_Init_Config_s bmi088_config = {
@@ -219,9 +250,20 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].w * 300 - rc_data[TEMP].key[KEY_PRESS].s * 300; // 系数待测
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].a * 300 - rc_data[TEMP].key[KEY_PRESS].d * 300;
+    uint8_t key_count;
+    float keyboard_speed;
 
+    // 控制底盘和云台运行模式,云台待添加,云台是否始终使用IMU数据?7
+    if (switch_is_down(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[下],底盘跟随云台
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    }
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_right)) // 右侧开关状态[中],底盘和云台分离,底盘保持不转动
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+    }
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
 
@@ -295,6 +337,47 @@ static void MouseKeySet()
 
         break;
     }
+
+    key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G]; // 切换发弹许可模式，上电后默认关闭发弹，按G后解锁发弹。
+
+    keyboard_speed = KEYBOARD_CHASSIS_BASE_SPEED *
+                     (float)chassis_cmd_send.chassis_speed_buff * 0.01f;
+    if (rc_data[TEMP].key[KEY_PRESS].shift)
+        keyboard_speed *= KEYBOARD_SHIFT_SPEED_SCALE;
+
+    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].a * keyboard_speed;
+    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * keyboard_speed -
+                          rc_data[TEMP].key[KEY_PRESS].s * keyboard_speed;
+
+    if (key_count != keyboard_shoot_last_key_count)
+        keyboard_shoot_allowed = !keyboard_shoot_allowed;
+    keyboard_shoot_last_key_count = key_count;
+
+    keyboard_shoot_fire_active = 0;
+    if (!keyboard_shoot_allowed)
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+    else if (rc_data[TEMP].mouse.press_l)
+    {
+        // The left mouse button reuses the friction-wheel start action and adds feeding.
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        shoot_cmd_send.shoot_rate = 8;
+        keyboard_shoot_fire_active = 1;
+    }
+    else
+    {
+        // F controls pre-spin; feeding is only enabled by the left mouse button.
+        shoot_cmd_send.shoot_mode = shoot_cmd_send.friction_mode == FRICTION_ON
+                                         ? SHOOT_ON
+                                         : SHOOT_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
 }
 
 /**
@@ -321,7 +404,8 @@ static void EmergencyHandler()
     if (switch_is_up(rc_data[TEMP].rc.switch_right))
     {
         robot_state = ROBOT_READY;
-        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        if (!switch_is_up(rc_data[TEMP].rc.switch_left))
+            shoot_cmd_send.shoot_mode = SHOOT_ON;
         LOGINFO("[CMD] reinstate, robot ready");
     }
 }
@@ -347,6 +431,10 @@ void RobotCMDTask()
         RemoteControlSet();
     else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
         MouseKeySet();
+
+#if YAW_STEP_TEST_ENABLE
+    YawStepTestSet(switch_is_up(rc_data[TEMP].rc.switch_left));
+#endif
 
     gimbal_cmd_send.pitch = LimitPitchTarget(gimbal_cmd_send.pitch);
 

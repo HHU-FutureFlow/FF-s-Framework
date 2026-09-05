@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $BuildDirectory = Join-Path $ProjectRoot "build"
-$TargetName = "basic_framework"
+$TargetName = "gimbal"
 
 function Find-Executable {
     param(
@@ -50,7 +50,7 @@ function Find-Executable {
         }
     }
 
-    throw "未找到 $Name。请将它加入 PATH，或设置对应的环境变量：$($EnvironmentVariables -join ', ')。"
+    throw ("Tool not found: " + $Name + ". Add it to PATH or set: " + ($EnvironmentVariables -join ", "))
 }
 
 function Add-ToolDirectoryToPath {
@@ -59,7 +59,7 @@ function Add-ToolDirectoryToPath {
     $toolDirectory = Split-Path -Parent $Executable
     $pathEntries = $env:PATH -split [IO.Path]::PathSeparator
     if ($pathEntries -notcontains $toolDirectory) {
-        $env:PATH = "$toolDirectory$([IO.Path]::PathSeparator)$env:PATH"
+        $env:PATH = $toolDirectory + [IO.Path]::PathSeparator + $env:PATH
     }
 }
 
@@ -91,11 +91,11 @@ function Reset-StaleCMakeCache {
         return
     }
 
-    Write-Host "检测到工程目录或生成器已变化，正在清理旧 CMake 缓存。"
+    Write-Host "Project path or generator changed; clearing stale CMake cache."
     $resolvedBuild = [IO.Path]::GetFullPath($BuildDirectory).TrimEnd("\")
     $expectedBuild = [IO.Path]::GetFullPath((Join-Path $ProjectRoot "build")).TrimEnd("\")
     if ($resolvedBuild -ne $expectedBuild -or -not $resolvedBuild.StartsWith([IO.Path]::GetFullPath($ProjectRoot), [StringComparison]::OrdinalIgnoreCase)) {
-        throw "拒绝清理非工程 build 目录：$resolvedBuild"
+        throw "Refusing to clean a build directory outside the project: $resolvedBuild"
     }
 
     Remove-Item -LiteralPath $cachePath -Force
@@ -123,7 +123,7 @@ function Configure-Project {
 
     & $cmake -S $ProjectRoot -B $BuildDirectory -G Ninja "-DCMAKE_BUILD_TYPE=$BuildType" "-DCMAKE_MAKE_PROGRAM=$ninja"
     if ($LASTEXITCODE -ne 0) {
-        throw "CMake 配置失败，退出码：$LASTEXITCODE"
+        throw "CMake configure failed with exit code: $LASTEXITCODE"
     }
 }
 
@@ -132,7 +132,7 @@ function Build-Project {
     $cmake = Get-CMake
     & $cmake --build $BuildDirectory --parallel
     if ($LASTEXITCODE -ne 0) {
-        throw "编译失败，退出码：$LASTEXITCODE"
+        throw "Build failed with exit code: $LASTEXITCODE"
     }
 }
 
@@ -144,7 +144,7 @@ function Clean-Project {
     $resolvedBuild = [IO.Path]::GetFullPath($BuildDirectory).TrimEnd("\")
     $expectedBuild = [IO.Path]::GetFullPath((Join-Path $ProjectRoot "build")).TrimEnd("\")
     if ($resolvedBuild -ne $expectedBuild) {
-        throw "拒绝删除非工程 build 目录：$resolvedBuild"
+        throw "Refusing to delete a build directory outside the project: $resolvedBuild"
     }
     Remove-Item -LiteralPath $BuildDirectory -Recurse -Force
 }
@@ -154,9 +154,12 @@ function Download-WithOpenOcd {
     $openOcd = Find-Executable -Name "openocd.exe" -EnvironmentVariables @("OPENOCD_PATH")
     $config = Join-Path $ProjectRoot "openocd_dap.cfg"
     $binary = Join-Path $BuildDirectory "$TargetName.bin"
-    & $openOcd -f $config -c init -c "reset halt" -c "flash write_image erase `"$binary`" 0x08000000" -c reset -c shutdown
+    $openOcdBinary = $binary.Replace("\", "/")
+    $writeCommand = "flash write_image erase {$openOcdBinary} 0x08000000"
+    $verifyCommand = "verify_image {$openOcdBinary} 0x08000000"
+    & $openOcd -f $config -c init -c "reset halt" -c $writeCommand -c $verifyCommand -c reset -c shutdown
     if ($LASTEXITCODE -ne 0) {
-        throw "OpenOCD 下载失败，退出码：$LASTEXITCODE"
+        throw "OpenOCD download failed with exit code: $LASTEXITCODE"
     }
 }
 
@@ -167,7 +170,7 @@ function Download-WithJLink {
     $hexFile = Join-Path $BuildDirectory "$TargetName.hex"
     & $jFlash "-openprj$projectFile" "-open$hexFile,0x8000000" -auto -startapp -exit
     if ($LASTEXITCODE -ne 0) {
-        throw "J-Flash 下载失败，退出码：$LASTEXITCODE"
+        throw "J-Flash download failed with exit code: $LASTEXITCODE"
     }
 }
 

@@ -42,6 +42,50 @@ static float chassis_vx, chassis_vy;
 static float vt_lf, vt_rf, vt_lb, vt_rb;
 static float target_lf, now_lf, output_lf;
 
+// Standalone debug symbols for VarScope.
+volatile float chassis_debug_recv_vx;
+volatile float chassis_debug_recv_vy;
+volatile float chassis_debug_recv_offset_angle;
+volatile float chassis_debug_recv_wz;
+volatile float chassis_debug_wz;
+volatile float chassis_debug_cos_theta;
+volatile float chassis_debug_sin_theta;
+volatile float chassis_debug_vx;
+volatile float chassis_debug_vy;
+volatile float chassis_debug_vt_lf;
+volatile float chassis_debug_vt_rf;
+volatile float chassis_debug_vt_lb;
+volatile float chassis_debug_vt_rb;
+volatile float chassis_debug_motor_ref_lf;
+volatile float chassis_debug_motor_ref_rf;
+volatile float chassis_debug_motor_ref_lb;
+volatile float chassis_debug_motor_ref_rb;
+volatile float chassis_debug_motor_speed_lf;
+volatile float chassis_debug_motor_speed_rf;
+volatile float chassis_debug_motor_speed_lb;
+volatile float chassis_debug_motor_speed_rb;
+
+static void UpdateChassisDebugData()
+{
+    chassis_debug_wz = chassis_cmd_recv.wz;
+    chassis_debug_cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
+    chassis_debug_sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
+    chassis_debug_vx = chassis_vx;
+    chassis_debug_vy = chassis_vy;
+    chassis_debug_vt_lf = vt_lf;
+    chassis_debug_vt_rf = vt_rf;
+    chassis_debug_vt_lb = vt_lb;
+    chassis_debug_vt_rb = vt_rb;
+    chassis_debug_motor_ref_lf = motor_lf->motor_controller.pid_ref;
+    chassis_debug_motor_ref_rf = motor_rf->motor_controller.pid_ref;
+    chassis_debug_motor_ref_lb = motor_lb->motor_controller.pid_ref;
+    chassis_debug_motor_ref_rb = motor_rb->motor_controller.pid_ref;
+    chassis_debug_motor_speed_lf = motor_lf->measure.speed_aps;
+    chassis_debug_motor_speed_rf = motor_rf->measure.speed_aps;
+    chassis_debug_motor_speed_lb = motor_lb->measure.speed_aps;
+    chassis_debug_motor_speed_rb = motor_rb->measure.speed_aps;
+}
+
 static float OutputShaftSpeedToMotorRef(float output_shaft_speed)
 {
 #if CHASSIS_USE_N630_VESC
@@ -217,6 +261,11 @@ void ChassisTask()
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif
 
+    chassis_debug_recv_vx = chassis_cmd_recv.vx;
+    chassis_debug_recv_vy = chassis_cmd_recv.vy;
+    chassis_debug_recv_offset_angle = chassis_cmd_recv.offset_angle;
+    chassis_debug_recv_wz = chassis_cmd_recv.wz;
+
     SetPowerLimit(1000000.0f);
     //SetPowerLimit(referee_data->GameRobotState.chassis_power_limit);
 
@@ -254,8 +303,8 @@ void ChassisTask()
     static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
-    chassis_vx = chassis_cmd_recv.vx * cos_theta - chassis_cmd_recv.vy * sin_theta;
-    chassis_vy = chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
+    chassis_vx = chassis_cmd_recv.vx * cos_theta + chassis_cmd_recv.vy * sin_theta;
+    chassis_vy = -chassis_cmd_recv.vx * sin_theta + chassis_cmd_recv.vy * cos_theta;
    
 
 #if CHASSIS_TYPE
@@ -267,6 +316,7 @@ void ChassisTask()
     target_lf = vt_lf;
     now_lf = MotorSpeedToOutputShaftSpeed(motor_lf->measure.speed_aps);
     LimitChassisOutput();
+    UpdateChassisDebugData();
     EstimateSpeed();
     output_lf = motor_lf->motor_controller.speed_PID.Output;
 
