@@ -355,9 +355,15 @@ static void MouseKeySet()
     keyboard_shoot_last_key_count = key_count;
 
     keyboard_shoot_fire_active = 0;
-    if (keyboard_shoot_allowed && rc_data[TEMP].mouse.press_l)
-    {   
-        // 按住左键开始连续射击，目前射击模式wei'sh
+    if (!keyboard_shoot_allowed)
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+    else if (rc_data[TEMP].mouse.press_l)
+    {
+        // The left mouse button reuses the friction-wheel start action and adds feeding.
         shoot_cmd_send.shoot_mode = SHOOT_ON;
         shoot_cmd_send.friction_mode = FRICTION_ON;
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
@@ -366,8 +372,10 @@ static void MouseKeySet()
     }
     else
     {
-        shoot_cmd_send.shoot_mode = SHOOT_OFF;
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        // F controls pre-spin; feeding is only enabled by the left mouse button.
+        shoot_cmd_send.shoot_mode = shoot_cmd_send.friction_mode == FRICTION_ON
+                                         ? SHOOT_ON
+                                         : SHOOT_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
     }
 }

@@ -43,6 +43,9 @@ static Publisher_t *shoot_cmd_pub;           // 发射控制消息发布者
 static Subscriber_t *shoot_feed_sub;         // 发射反馈信息订阅者
 static Shoot_Ctrl_Cmd_s shoot_cmd_send;      // 传递给发射的控制信息
 static Shoot_Upload_Data_s shoot_fetch_data; // 从发射获取的反馈信息
+static uint8_t keyboard_shoot_allowed;
+static uint8_t keyboard_shoot_last_key_count;
+volatile uint8_t keyboard_shoot_fire_active;
 
 static Robot_Status_e robot_state; // 机器人整体工作状态
 
@@ -209,6 +212,8 @@ static void RemoteControlSet()
  */
 static void MouseKeySet()
 {
+    uint8_t key_count;
+
     float keyboard_speed;
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
@@ -293,6 +298,36 @@ static void MouseKeySet()
     default:
 
         break;
+    }
+
+    key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G];
+    if (key_count != keyboard_shoot_last_key_count)
+        keyboard_shoot_allowed = !keyboard_shoot_allowed;
+    keyboard_shoot_last_key_count = key_count;
+
+    keyboard_shoot_fire_active = 0;
+    if (!keyboard_shoot_allowed)
+    {
+        shoot_cmd_send.shoot_mode = SHOOT_OFF;
+        shoot_cmd_send.friction_mode = FRICTION_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
+    }
+    else if (rc_data[TEMP].mouse.press_l)
+    {
+        // The left mouse button reuses the friction-wheel start action and adds feeding.
+        shoot_cmd_send.shoot_mode = SHOOT_ON;
+        shoot_cmd_send.friction_mode = FRICTION_ON;
+        shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
+        shoot_cmd_send.shoot_rate = 8;
+        keyboard_shoot_fire_active = 1;
+    }
+    else
+    {
+        // F controls pre-spin; feeding is only enabled by the left mouse button.
+        shoot_cmd_send.shoot_mode = shoot_cmd_send.friction_mode == FRICTION_ON
+                                         ? SHOOT_ON
+                                         : SHOOT_OFF;
+        shoot_cmd_send.load_mode = LOAD_STOP;
     }
 }
 
