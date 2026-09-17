@@ -213,8 +213,24 @@ static void RemoteControlSet()
 static void MouseKeySet()
 {
     uint8_t key_count;
+    uint8_t keyboard_rotate_enabled;
 
     float keyboard_speed;
+
+    // 控制底盘和云台运行模式,R键每按一次切换小陀螺
+    keyboard_rotate_enabled = rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2;
+    if (keyboard_rotate_enabled ||
+        switch_is_down(rc_data[TEMP].rc.switch_right))
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    }
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_right) ||
+             switch_is_up(rc_data[TEMP].rc.switch_right))
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+    }
 
     gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
     gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
@@ -244,15 +260,6 @@ static void MouseKeySet()
         break;
     default:
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
-        break;
-    }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2) // R键开关弹舱
-    {
-    case 0:
-        shoot_cmd_send.lid_mode = LID_OPEN;
-        break;
-    default:
-        shoot_cmd_send.lid_mode = LID_CLOSE;
         break;
     }
     switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
