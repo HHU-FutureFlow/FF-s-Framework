@@ -214,6 +214,26 @@ void ChassisInit()
 #define RF_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define LB_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define RB_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
+#define CHASSIS_WZ_RAMP_RATE 2000.0f // 旋转速度变化率,约200ms完成400到0的减速
+
+static float chassis_wz_output;
+static uint32_t chassis_wz_ramp_cnt;
+
+static float ChassisWzRamp(float target_wz)
+{
+    float dt = DWT_GetDeltaT(&chassis_wz_ramp_cnt);
+    float max_delta = CHASSIS_WZ_RAMP_RATE * dt;
+    float delta = target_wz - chassis_wz_output;
+
+    if (delta > max_delta)
+        chassis_wz_output += max_delta;
+    else if (delta < -max_delta)
+        chassis_wz_output -= max_delta;
+    else
+        chassis_wz_output = target_wz;
+
+    return chassis_wz_output;
+}
 
 static void MecanumCalculate()
 {
@@ -285,20 +305,24 @@ void ChassisTask()
 #endif
     }
 
+    float target_wz;
     switch (chassis_cmd_recv.chassis_mode)
     {
+    case CHASSIS_ZERO_FORCE:
     case CHASSIS_NO_FOLLOW:
-        chassis_cmd_recv.wz = 0;
+        target_wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW:
-        chassis_cmd_recv.wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        target_wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE:
-        chassis_cmd_recv.wz = 400;
+        target_wz = 400;
         break;
     default:
+        target_wz = 0;
         break;
     }
+    chassis_cmd_recv.wz = ChassisWzRamp(target_wz);
 
     static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
