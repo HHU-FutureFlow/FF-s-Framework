@@ -235,6 +235,25 @@ static float ChassisWzRamp(float target_wz)
     return chassis_wz_output;
 }
 
+#if !CHASSIS_USE_N630_VESC
+static void ResetSpeedPIDIntegral(DJIMotorInstance *motor)
+{
+    PIDInstance *pid = &motor->motor_controller.speed_PID;
+
+    pid->Iout = 0.0f;
+    pid->ITerm = 0.0f;
+    pid->Last_ITerm = 0.0f;
+}
+
+static void ResetChassisSpeedPIDIntegral(void)
+{
+    ResetSpeedPIDIntegral(motor_lf);
+    ResetSpeedPIDIntegral(motor_rf);
+    ResetSpeedPIDIntegral(motor_lb);
+    ResetSpeedPIDIntegral(motor_rb);
+}
+#endif
+
 static void MecanumCalculate()
 {
     vt_lf = (-chassis_vx - chassis_vy - chassis_cmd_recv.wz * LF_CENTER) / RADIUS_WHEEL;
@@ -274,12 +293,23 @@ static void EstimateSpeed()
 
 void ChassisTask()
 {
+    static chassis_mode_e last_chassis_mode = CHASSIS_NO_FOLLOW;
+
 #ifdef ONE_BOARD
     SubGetMessage(chassis_sub, &chassis_cmd_recv);
 #endif
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif
+
+    if (last_chassis_mode == CHASSIS_ROTATE &&
+        chassis_cmd_recv.chassis_mode != CHASSIS_ROTATE)
+    {
+#if !CHASSIS_USE_N630_VESC
+        ResetChassisSpeedPIDIntegral();
+#endif
+    }
+    last_chassis_mode = chassis_cmd_recv.chassis_mode;
 
     chassis_debug_recv_vx = chassis_cmd_recv.vx;
     chassis_debug_recv_vy = chassis_cmd_recv.vy;
