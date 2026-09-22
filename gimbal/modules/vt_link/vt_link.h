@@ -26,4 +26,18 @@ extern volatile uint32_t vt_link_crc16_err_cnt;
 extern volatile uint16_t vt_link_last_cmd_id;
 extern volatile uint8_t vt_link_online;
 
+/* VarScope diagnostics: UART reception and protocol parsing only. */
+extern volatile uint32_t vt_debug_rx_event_cnt;
+extern volatile uint16_t vt_debug_last_recv_len;
+extern volatile uint32_t vt_debug_frame_cnt;
+extern volatile uint32_t vt_debug_crc8_err_cnt;
+extern volatile uint32_t vt_debug_crc16_err_cnt;
+extern volatile uint16_t vt_debug_last_cmd_id;
+extern volatile uint16_t vt_debug_last_data_len;
+extern volatile uint16_t vt_debug_stream_len;
+extern volatile uint8_t vt_debug_online;
+extern volatile uint8_t vt_debug_raw_len;
+extern volatile uint32_t vt_debug_raw_word0;
+extern volatile uint32_t vt_debug_raw_word1;
+
 #endif

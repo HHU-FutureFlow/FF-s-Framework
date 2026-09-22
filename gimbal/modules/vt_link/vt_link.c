@@ -30,6 +30,19 @@ volatile uint32_t vt_link_crc16_err_cnt;
 volatile uint16_t vt_link_last_cmd_id;
 volatile uint8_t vt_link_online;
 
+volatile uint32_t vt_debug_rx_event_cnt;
+volatile uint16_t vt_debug_last_recv_len;
+volatile uint32_t vt_debug_frame_cnt;
+volatile uint32_t vt_debug_crc8_err_cnt;
+volatile uint32_t vt_debug_crc16_err_cnt;
+volatile uint16_t vt_debug_last_cmd_id;
+volatile uint16_t vt_debug_last_data_len;
+volatile uint16_t vt_debug_stream_len;
+volatile uint8_t vt_debug_online;
+volatile uint8_t vt_debug_raw_len;
+volatile uint32_t vt_debug_raw_word0;
+volatile uint32_t vt_debug_raw_word1;
+
 static void VTLinkParseKeyMouse(const uint8_t *data)
 {
     uint16_t key_now;
@@ -108,6 +121,7 @@ static void VTLinkParseStream(void)
 
         data_len = (uint16_t)(vt_stream_buff[offset + DATA_LENGTH] |
                               (vt_stream_buff[offset + DATA_LENGTH + 1u] << 8));
+        vt_debug_last_data_len = data_len;
         if (data_len > VT_LINK_MAX_DATA_LEN)
         {
             offset++;
@@ -121,6 +135,7 @@ static void VTLinkParseStream(void)
         if (!Verify_CRC8_Check_Sum(vt_stream_buff + offset, LEN_HEADER))
         {
             vt_link_crc8_err_cnt++;
+            vt_debug_crc8_err_cnt++;
             offset++;
             continue;
         }
@@ -128,6 +143,7 @@ static void VTLinkParseStream(void)
         if (!Verify_CRC16_Check_Sum(vt_stream_buff + offset, frame_len))
         {
             vt_link_crc16_err_cnt++;
+            vt_debug_crc16_err_cnt++;
             offset++;
             continue;
         }
@@ -135,12 +151,15 @@ static void VTLinkParseStream(void)
         cmd_id = (uint16_t)(vt_stream_buff[offset + CMD_ID_Offset] |
                             (vt_stream_buff[offset + CMD_ID_Offset + 1u] << 8));
         vt_link_last_cmd_id = cmd_id;
+        vt_debug_last_cmd_id = cmd_id;
 
         if (cmd_id == VT_LINK_CMD_KEYMOUSE && data_len == VT_LINK_KEYMOUSE_DATA_LEN)
         {
             VTLinkParseKeyMouse(vt_stream_buff + offset + DATA_Offset);
             vt_link_frame_cnt++;
+            vt_debug_frame_cnt++;
             vt_link_online = 1u;
+            vt_debug_online = 1u;
             DaemonReload(vt_daemon_instance);
         }
 
@@ -152,6 +171,8 @@ static void VTLinkParseStream(void)
         memmove(vt_stream_buff, vt_stream_buff + offset, vt_stream_len - offset);
         vt_stream_len = (uint16_t)(vt_stream_len - offset);
     }
+
+    vt_debug_stream_len = vt_stream_len;
 }
 
 static void VTLinkRxCallback(void)
@@ -160,6 +181,15 @@ static void VTLinkRxCallback(void)
     uint16_t dump_len = recv_len < VT_LINK_RAW_DUMP_LEN ? recv_len : VT_LINK_RAW_DUMP_LEN;
 
     vt_link_rx_event_cnt++;
+    vt_debug_rx_event_cnt++;
+    vt_debug_last_recv_len = recv_len;
+    vt_debug_raw_len = (uint8_t)dump_len;
+    vt_debug_raw_word0 = 0u;
+    vt_debug_raw_word1 = 0u;
+    for (uint16_t i = 0u; i < dump_len && i < 4u; ++i)
+        vt_debug_raw_word0 |= (uint32_t)vt_usart_instance->recv_buff[i] << (8u * i);
+    for (uint16_t i = 4u; i < dump_len && i < 8u; ++i)
+        vt_debug_raw_word1 |= (uint32_t)vt_usart_instance->recv_buff[i] << (8u * (i - 4u));
     memcpy((void *)vt_link_raw_buff, vt_usart_instance->recv_buff, dump_len);
 
     if (recv_len == 0u)
@@ -183,6 +213,7 @@ static void VTLinkLostCallback(void *id)
     memset(&vt_ctrl[TEMP].key[KEY_PRESS_WITH_SHIFT], 0, sizeof(Key_t));
     memcpy(&vt_ctrl[LAST], &vt_ctrl[TEMP], sizeof(RC_ctrl_t));
     vt_link_online = 0u;
+    vt_debug_online = 0u;
     vt_resync_pending = 1u;
     USARTServiceInit(vt_usart_instance);
     LOGWARNING("[vt_link] keymouse data lost, restart usart rx");
@@ -201,8 +232,8 @@ RC_ctrl_t *VTLinkInit(UART_HandleTypeDef *vt_usart_handle)
 
     if (vt_usart_handle->Instance != USART6)
         LOGWARNING("[vt_link] expected USART6 for VT02 input");
-    if (vt_usart_handle->Init.BaudRate != 921600u)
-        LOGWARNING("[vt_link] expected USART6 baudrate 921600");
+    if (vt_usart_handle->Init.BaudRate != 115200u)
+        LOGWARNING("[vt_link] expected USART6 baudrate 115200");
 
     memset(vt_ctrl, 0, sizeof(vt_ctrl));
     memset(vt_stream_buff, 0, sizeof(vt_stream_buff));
