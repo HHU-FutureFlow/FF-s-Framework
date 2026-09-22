@@ -14,6 +14,9 @@ static uint8_t yaw_test_last_key_count;
 #include "robot_cmd.h"
 // module
 #include "remote_control.h"
+#if VT_LINK_ENABLE
+#include "vt_link.h"
+#endif // VT_LINK_ENABLE
 #include "ins_task.h"
 #include "master_process.h"
 #include "message_center.h"
@@ -51,6 +54,9 @@ static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信�
 static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
 
 static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
+#if VT_LINK_ENABLE
+static RC_ctrl_t *vt_data;              // VT02图传键鼠数据
+#endif // VT_LINK_ENABLE
 static Vision_Recv_s *vision_recv_data; // 视觉接收数据指针,初始化时返回
 static Vision_Send_s vision_send_data;  // 视觉发送数据
 
@@ -72,9 +78,18 @@ static uint8_t keyboard_shoot_allowed;
 static uint8_t keyboard_shoot_last_key_count;
 volatile uint8_t keyboard_shoot_fire_active;
 #if YAW_STEP_TEST_ENABLE
-static void YawStepTestSet(uint8_t keyboard_mode)
+static void YawStepTestSet(RC_ctrl_t *keymouse, uint8_t keyboard_mode)
 {
-    uint8_t key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_X];
+    uint8_t key_count;
+
+    if (!keyboard_mode || keymouse == NULL)
+    {
+        yaw_test_key_rise = 0.0f;
+        yaw_test_target = gimbal_cmd_send.yaw;
+        return;
+    }
+
+    key_count = keymouse[TEMP].key_count[KEY_PRESS][Key_X];
 
     yaw_test_key_rise = 0.0f;
     if (keyboard_mode && key_count != yaw_test_last_key_count)
@@ -134,6 +149,10 @@ void RobotCMDInit()
    rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
+#if VT_LINK_ENABLE
+    vt_data = VTLinkInit(&huart6);
+#endif // VT_LINK_ENABLE
+
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
     gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
     shoot_cmd_pub = PubRegister("shoot_cmd", sizeof(Shoot_Ctrl_Cmd_s));
@@ -188,26 +207,15 @@ static void CalcOffsetAngle()
 #endif
 }
 
-static void SetChassisGimbalMode()
-{
-    if (rc_data[TEMP].key_count[KEY_PRESS][Key_R] % 2)
-    {
-        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
-    }
-    else
-    {
-        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
-    }
-}
-
 /**
  * @brief 控制输入为遥控器(调试时)的模式和控制量设置
  *
  */
 static void RemoteControlSet()
 {
+    chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+    gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+
     // 云台参数,确定云台控制数据
     if (switch_is_mid(rc_data[TEMP].rc.switch_left)) // 左侧开关状态为[中],视觉模式
     {
@@ -250,15 +258,26 @@ static void RemoteControlSet()
  * @brief 输入为键鼠时模式和控制量设置
  *
  */
-static void MouseKeySet()
+static void MouseKeySet(RC_ctrl_t *keymouse)
 {
     uint8_t key_count;
     float keyboard_speed;
 
-    gimbal_cmd_send.yaw += (float)rc_data[TEMP].mouse.x / 660 * 10; // 系数待测
-    gimbal_cmd_send.pitch += (float)rc_data[TEMP].mouse.y / 660 * 10;
+    if (keymouse[TEMP].key_count[KEY_PRESS][Key_R] % 2)
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_ROTATE;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    }
+    else
+    {
+        chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_FREE_MODE;
+    }
 
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z键设置弹速
+    gimbal_cmd_send.yaw += (float)keymouse[TEMP].mouse.x / 660 * 10; // 系数待测
+    gimbal_cmd_send.pitch += (float)keymouse[TEMP].mouse.y / 660 * 10;
+
+    switch (keymouse[TEMP].key_count[KEY_PRESS][Key_Z] % 3) // Z键设置弹速
     {
     case 0:
         shoot_cmd_send.bullet_speed = 15;
@@ -270,7 +289,7 @@ static void MouseKeySet()
         shoot_cmd_send.bullet_speed = 30;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_E] % 4) // E键设置发射模式
+    switch (keymouse[TEMP].key_count[KEY_PRESS][Key_E] % 4) // E键设置发射模式
     {
     case 0:
         shoot_cmd_send.load_mode = LOAD_STOP;
@@ -285,7 +304,7 @@ static void MouseKeySet()
         shoot_cmd_send.load_mode = LOAD_BURSTFIRE;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
+    switch (keymouse[TEMP].key_count[KEY_PRESS][Key_F] % 2) // F键开关摩擦轮
     {
     case 0:
         shoot_cmd_send.friction_mode = FRICTION_OFF;
@@ -294,7 +313,7 @@ static void MouseKeySet()
         shoot_cmd_send.friction_mode = FRICTION_ON;
         break;
     }
-    switch (rc_data[TEMP].key_count[KEY_PRESS][Key_C] % 4) // C键设置底盘速度
+    switch (keymouse[TEMP].key_count[KEY_PRESS][Key_C] % 4) // C键设置底盘速度
     {
     case 0:
         chassis_cmd_send.chassis_speed_buff = 40;
@@ -309,7 +328,7 @@ static void MouseKeySet()
         chassis_cmd_send.chassis_speed_buff = 100;
         break;
     }
-    switch (rc_data[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量
+    switch (keymouse[TEMP].key[KEY_PRESS].shift) // 待添加 按shift允许超功率 消耗缓冲能量
     {
     case 1:
 
@@ -320,17 +339,17 @@ static void MouseKeySet()
         break;
     }
 
-    key_count = rc_data[TEMP].key_count[KEY_PRESS][Key_G]; // 切换发弹许可模式，上电后默认关闭发弹，按G后解锁发弹。
+    key_count = keymouse[TEMP].key_count[KEY_PRESS][Key_G]; // 切换发弹许可模式，上电后默认关闭发弹，按G后解锁发弹。
 
     keyboard_speed = KEYBOARD_CHASSIS_BASE_SPEED *
                      (float)chassis_cmd_send.chassis_speed_buff * 0.01f;
-    if (rc_data[TEMP].key[KEY_PRESS].shift)
+    if (keymouse[TEMP].key[KEY_PRESS].shift)
         keyboard_speed *= KEYBOARD_SHIFT_SPEED_SCALE;
 
-    chassis_cmd_send.vx = rc_data[TEMP].key[KEY_PRESS].d * keyboard_speed -
-                          rc_data[TEMP].key[KEY_PRESS].a * keyboard_speed;
-    chassis_cmd_send.vy = rc_data[TEMP].key[KEY_PRESS].w * keyboard_speed -
-                          rc_data[TEMP].key[KEY_PRESS].s * keyboard_speed;
+    chassis_cmd_send.vx = keymouse[TEMP].key[KEY_PRESS].d * keyboard_speed -
+                          keymouse[TEMP].key[KEY_PRESS].a * keyboard_speed;
+    chassis_cmd_send.vy = keymouse[TEMP].key[KEY_PRESS].w * keyboard_speed -
+                          keymouse[TEMP].key[KEY_PRESS].s * keyboard_speed;
 
     if (key_count != keyboard_shoot_last_key_count)
         keyboard_shoot_allowed = !keyboard_shoot_allowed;
@@ -343,7 +362,7 @@ static void MouseKeySet()
         shoot_cmd_send.friction_mode = FRICTION_OFF;
         shoot_cmd_send.load_mode = LOAD_STOP;
     }
-    else if (rc_data[TEMP].mouse.press_l)
+    else if (keymouse[TEMP].mouse.press_l)
     {
         // The left mouse button reuses the friction-wheel start action and adds feeding.
         shoot_cmd_send.shoot_mode = SHOOT_ON;
@@ -393,8 +412,18 @@ static void EmergencyHandler()
 }
 
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
+static void StopRobotCommands(void)
+{
+    gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
+    chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
+    shoot_cmd_send.shoot_mode = SHOOT_OFF;
+    shoot_cmd_send.friction_mode = FRICTION_OFF;
+    shoot_cmd_send.load_mode = LOAD_STOP;
+}
+
 void RobotCMDTask()
 {
+    RC_ctrl_t *keymouse = NULL;
    // BMI088Acquire(bmi088_test,&bmi088_data) ;
     // 从其他应用获取回传数据
 #ifdef ONE_BOARD
@@ -408,15 +437,31 @@ void RobotCMDTask()
 
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
-    SetChassisGimbalMode();
-    // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
-    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
+    // 左拨杆下为 DR16 摇杆，中为 VT02 键鼠，上为 DR16 键鼠。
+    if (switch_is_down(rc_data[TEMP].rc.switch_left))
         RemoteControlSet();
-    else if (switch_is_up(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[上],键盘控制
-        MouseKeySet();
+    else if (switch_is_mid(rc_data[TEMP].rc.switch_left))
+    {
+#if VT_LINK_ENABLE
+        if (VTLinkIsOnline())
+        {
+            keymouse = vt_data;
+            MouseKeySet(keymouse);
+        }
+        else
+#endif // VT_LINK_ENABLE
+        {
+            StopRobotCommands();
+        }
+    }
+    else if (switch_is_up(rc_data[TEMP].rc.switch_left))
+    {
+        keymouse = rc_data;
+        MouseKeySet(keymouse);
+    }
 
 #if YAW_STEP_TEST_ENABLE
-    YawStepTestSet(switch_is_up(rc_data[TEMP].rc.switch_left));
+    YawStepTestSet(keymouse, keymouse != NULL);
 #endif
 
     gimbal_cmd_send.pitch = LimitPitchTarget(gimbal_cmd_send.pitch);
