@@ -323,6 +323,20 @@ void ChassisTask()
     {
 
 #if CHASSIS_USE_N630_VESC
+        N630MotorStop(motor_lf);
+        N630MotorStop(motor_rf);
+        N630MotorStop(motor_lb);
+        N630MotorStop(motor_rb);
+#else
+        DJIMotorStop(motor_lf);
+        DJIMotorStop(motor_rf);
+        DJIMotorStop(motor_lb);
+        DJIMotorStop(motor_rb);
+#endif
+    }
+    else
+    {
+#if CHASSIS_USE_N630_VESC
         N630MotorEnable(motor_lf);
         N630MotorEnable(motor_rf);
         N630MotorEnable(motor_lb);

@@ -53,7 +53,9 @@ static Subscriber_t *chassis_feed_sub; // 底盘反馈信息订阅者
 static Chassis_Ctrl_Cmd_s chassis_cmd_send;      // 发送给底盘应用的信息,包括控制信息和UI绘制相关
 static Chassis_Upload_Data_s chassis_fetch_data; // 从底盘应用接收的反馈信息信息,底盘功率枪口热量与底盘运动状态等
 
+#if CONTROL_SOURCE == CONTROL_SOURCE_DR16
 static RC_ctrl_t *rc_data;              // 遥控器数据,初始化时返回
+#endif
 #if VT_LINK_ENABLE
 static RC_ctrl_t *vt_data;              // VT02图传键鼠数据
 #endif // VT_LINK_ENABLE
@@ -77,6 +79,8 @@ BMI088_Data_t bmi088_data;
 static uint8_t keyboard_shoot_allowed;
 static uint8_t keyboard_shoot_last_key_count;
 volatile uint8_t keyboard_shoot_fire_active;
+static uint8_t keyboard_emergency_last_key_count;
+static uint8_t manual_emergency_latched;
 #if YAW_STEP_TEST_ENABLE
 static void YawStepTestSet(RC_ctrl_t *keymouse, uint8_t keyboard_mode)
 {
@@ -146,7 +150,9 @@ void RobotCMDInit()
     //     },
     // };
     //bmi088_test = BMI088Register(&bmi088_config);
-   rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
+#if CONTROL_SOURCE == CONTROL_SOURCE_DR16
+    rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
+#endif
     vision_recv_data = VisionInit(&huart1); // 视觉通信串口
 
 #if VT_LINK_ENABLE
@@ -211,6 +217,7 @@ static void CalcOffsetAngle()
  * @brief 控制输入为遥控器(调试时)的模式和控制量设置
  *
  */
+#if CONTROL_SOURCE == CONTROL_SOURCE_DR16
 static void RemoteControlSet()
 {
     chassis_cmd_send.chassis_mode = CHASSIS_NO_FOLLOW;
@@ -253,6 +260,7 @@ static void RemoteControlSet()
     // 射频控制,固定每秒1发,后续可以根据左侧拨轮的值大小切换射频,
     shoot_cmd_send.shoot_rate = 8;
 }
+#endif
 
 /**
  * @brief 输入为键鼠时模式和控制量设置
@@ -262,6 +270,17 @@ static void MouseKeySet(RC_ctrl_t *keymouse)
 {
     uint8_t key_count;
     float keyboard_speed;
+
+    key_count = keymouse[TEMP].key_count[KEY_PRESS][Key_B];
+    if (key_count != keyboard_emergency_last_key_count)
+    {
+        manual_emergency_latched = 1u;
+        robot_state = ROBOT_STOP;
+    }
+    keyboard_emergency_last_key_count = key_count;
+
+    if (manual_emergency_latched)
+        return;
 
     if (keymouse[TEMP].key_count[KEY_PRESS][Key_R] % 2)
     {
@@ -388,26 +407,30 @@ static void MouseKeySet(RC_ctrl_t *keymouse)
  * @todo   后续修改为遥控器离线则电机停止(关闭遥控器急停),通过给遥控器模块添加daemon实现
  *
  */
+static void StopRobotCommands(void);
+
 static void EmergencyHandler()
 {
+#if CONTROL_SOURCE == CONTROL_SOURCE_DR16
     // 拨轮的向下拨超过一半进入急停模式.注意向打时下拨轮是正
-    if (rc_data[TEMP].rc.dial > 300 || robot_state == ROBOT_STOP) // 还需添加重要应用和模块离线的判断
+    if (rc_data[TEMP].rc.dial > 300)
     {
         robot_state = ROBOT_STOP;
-        gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
-        chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
-        shoot_cmd_send.shoot_mode = SHOOT_OFF;
-        shoot_cmd_send.friction_mode = FRICTION_OFF;
-        shoot_cmd_send.load_mode = LOAD_STOP;
-        LOGERROR("[CMD] emergency stop!");
     }
     // 遥控器右侧开关为[上],恢复正常运行
-    if (switch_is_up(rc_data[TEMP].rc.switch_right))
+    if (!manual_emergency_latched && switch_is_up(rc_data[TEMP].rc.switch_right))
     {
         robot_state = ROBOT_READY;
         if (!switch_is_up(rc_data[TEMP].rc.switch_left))
             shoot_cmd_send.shoot_mode = SHOOT_ON;
         LOGINFO("[CMD] reinstate, robot ready");
+    }
+#endif
+
+    if (manual_emergency_latched || robot_state == ROBOT_STOP)
+    {
+        StopRobotCommands();
+        LOGERROR("[CMD] emergency stop!");
     }
 }
 
@@ -416,6 +439,9 @@ static void StopRobotCommands(void)
 {
     gimbal_cmd_send.gimbal_mode = GIMBAL_ZERO_FORCE;
     chassis_cmd_send.chassis_mode = CHASSIS_ZERO_FORCE;
+    chassis_cmd_send.vx = 0.0f;
+    chassis_cmd_send.vy = 0.0f;
+    chassis_cmd_send.wz = 0.0f;
     shoot_cmd_send.shoot_mode = SHOOT_OFF;
     shoot_cmd_send.friction_mode = FRICTION_OFF;
     shoot_cmd_send.load_mode = LOAD_STOP;
@@ -437,28 +463,35 @@ void RobotCMDTask()
 
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
-    // 左拨杆下为 DR16 摇杆，中为 VT02 键鼠，上为 DR16 键鼠。
-    if (switch_is_down(rc_data[TEMP].rc.switch_left))
-        RemoteControlSet();
-    else if (switch_is_mid(rc_data[TEMP].rc.switch_left))
+#if CONTROL_SOURCE == CONTROL_SOURCE_DR16
+    if (!RemoteControlIsOnline())
     {
-#if VT_LINK_ENABLE
-        if (VTLinkIsOnline())
-        {
-            keymouse = vt_data;
-            MouseKeySet(keymouse);
-        }
-        else
-#endif // VT_LINK_ENABLE
-        {
-            StopRobotCommands();
-        }
+        StopRobotCommands();
+    }
+    else if (switch_is_down(rc_data[TEMP].rc.switch_left))
+    {
+        RemoteControlSet();
     }
     else if (switch_is_up(rc_data[TEMP].rc.switch_left))
     {
         keymouse = rc_data;
         MouseKeySet(keymouse);
     }
+    else
+    {
+        StopRobotCommands();
+    }
+#elif CONTROL_SOURCE == CONTROL_SOURCE_VT02
+    if (!VTLinkIsOnline())
+    {
+        StopRobotCommands();
+    }
+    else
+    {
+        keymouse = vt_data;
+        MouseKeySet(keymouse);
+    }
+#endif
 
 #if YAW_STEP_TEST_ENABLE
     YawStepTestSet(keymouse, keymouse != NULL);
