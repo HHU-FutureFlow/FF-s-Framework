@@ -105,6 +105,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     { // find the instance which is being handled
         if (huart == usart_instance[i]->usart_handle)
         { // call the callback function if it is not NULL
+            usart_instance[i]->recv_len = Size;
             if (usart_instance[i]->module_callback != NULL)
             {
                 usart_instance[i]->module_callback();

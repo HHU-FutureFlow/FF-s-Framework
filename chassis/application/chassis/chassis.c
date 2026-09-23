@@ -214,6 +214,45 @@ void ChassisInit()
 #define RF_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE - CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define LB_CENTER ((HALF_TRACK_WIDTH + CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
 #define RB_CENTER ((HALF_TRACK_WIDTH - CENTER_GIMBAL_OFFSET_X + HALF_WHEEL_BASE + CENTER_GIMBAL_OFFSET_Y) * DEGREE_2_RAD)
+#define CHASSIS_WZ_RAMP_RATE 2000.0f // 旋转速度变化率,约200ms完成400到0的减速
+
+static float chassis_wz_output;
+static uint32_t chassis_wz_ramp_cnt;
+
+static float ChassisWzRamp(float target_wz)
+{
+    float dt = DWT_GetDeltaT(&chassis_wz_ramp_cnt);
+    float max_delta = CHASSIS_WZ_RAMP_RATE * dt;
+    float delta = target_wz - chassis_wz_output;
+
+    if (delta > max_delta)
+        chassis_wz_output += max_delta;
+    else if (delta < -max_delta)
+        chassis_wz_output -= max_delta;
+    else
+        chassis_wz_output = target_wz;
+
+    return chassis_wz_output;
+}
+
+#if !CHASSIS_USE_N630_VESC
+static void ResetSpeedPIDIntegral(DJIMotorInstance *motor)
+{
+    PIDInstance *pid = &motor->motor_controller.speed_PID;
+
+    pid->Iout = 0.0f;
+    pid->ITerm = 0.0f;
+    pid->Last_ITerm = 0.0f;
+}
+
+static void ResetChassisSpeedPIDIntegral(void)
+{
+    ResetSpeedPIDIntegral(motor_lf);
+    ResetSpeedPIDIntegral(motor_rf);
+    ResetSpeedPIDIntegral(motor_lb);
+    ResetSpeedPIDIntegral(motor_rb);
+}
+#endif
 
 static void MecanumCalculate()
 {
@@ -254,12 +293,23 @@ static void EstimateSpeed()
 
 void ChassisTask()
 {
+    static chassis_mode_e last_chassis_mode = CHASSIS_NO_FOLLOW;
+
 #ifdef ONE_BOARD
     SubGetMessage(chassis_sub, &chassis_cmd_recv);
 #endif
 #ifdef CHASSIS_BOARD
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif
+
+    if (last_chassis_mode == CHASSIS_ROTATE &&
+        chassis_cmd_recv.chassis_mode != CHASSIS_ROTATE)
+    {
+#if !CHASSIS_USE_N630_VESC
+        ResetChassisSpeedPIDIntegral();
+#endif
+    }
+    last_chassis_mode = chassis_cmd_recv.chassis_mode;
 
     chassis_debug_recv_vx = chassis_cmd_recv.vx;
     chassis_debug_recv_vy = chassis_cmd_recv.vy;
@@ -273,6 +323,20 @@ void ChassisTask()
     {
 
 #if CHASSIS_USE_N630_VESC
+        N630MotorStop(motor_lf);
+        N630MotorStop(motor_rf);
+        N630MotorStop(motor_lb);
+        N630MotorStop(motor_rb);
+#else
+        DJIMotorStop(motor_lf);
+        DJIMotorStop(motor_rf);
+        DJIMotorStop(motor_lb);
+        DJIMotorStop(motor_rb);
+#endif
+    }
+    else
+    {
+#if CHASSIS_USE_N630_VESC
         N630MotorEnable(motor_lf);
         N630MotorEnable(motor_rf);
         N630MotorEnable(motor_lb);
@@ -285,20 +349,24 @@ void ChassisTask()
 #endif
     }
 
+    float target_wz;
     switch (chassis_cmd_recv.chassis_mode)
     {
+    case CHASSIS_ZERO_FORCE:
     case CHASSIS_NO_FOLLOW:
-        chassis_cmd_recv.wz = 0;
+        target_wz = 0;
         break;
     case CHASSIS_FOLLOW_GIMBAL_YAW:
-        chassis_cmd_recv.wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
+        target_wz = -1.5f * chassis_cmd_recv.offset_angle * abs(chassis_cmd_recv.offset_angle);
         break;
     case CHASSIS_ROTATE:
-        chassis_cmd_recv.wz = 400;
+        target_wz = 400;
         break;
     default:
+        target_wz = 0;
         break;
     }
+    chassis_cmd_recv.wz = ChassisWzRamp(target_wz);
 
     static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
