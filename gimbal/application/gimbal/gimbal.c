@@ -47,7 +47,7 @@ void GimbalInit()
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 4,
+                .Kp = 8,
                 .Ki = 0,
                 .Kd = 0.5,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -144,7 +144,8 @@ void GimbalTask()
     CANCommSend(yaw_can_comm, (uint8_t *)&yaw_cmd_send);
 
     // 在合适的地方添加pitch重力补偿前馈力矩
-    // 根据IMU姿态/pitch电机角度反馈计算出当前配重下的重力矩
+    // 根据IMU姿态/pitch电机角度反
+    // 馈计算出当前配重下的重力矩
     // ...
 
 
@@ -164,4 +165,5 @@ void GimbalTask()
 
     // 推送消息
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
+    
 }
