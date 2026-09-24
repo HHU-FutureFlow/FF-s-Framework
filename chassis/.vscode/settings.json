@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "stm32f4xx_hal_def.h": "c",
+        "bsp_usb.h": "c",
+        "usb_device.h": "c",
+        "usbd_cdc.h": "c",
+        "usbd_conf.h": "c",
+        "usbd_desc.h": "c",
+        "usbd_cdc_if.h": "c",
+        "chassis.h": "c",
+        "remote_control.h": "c",
+        "arm_math.h": "c",
+        "can_comm.h": "c",
+        "dji_motor.h": "c",
+        "bsp_log.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled",
+    "cortex-debug.variableUseNaturalFormat": true,
+    "mcu-debug.debug-tracker-vscode.debugLevel": 2,
+    "task.allowAutomaticTasks": "on",
+    "cmake.cmakePath": "C:/mingw64/bin/cmake.exe",
+    "cmake.preferredGenerators": [
+        "Ninja"
+    ],
+    "git.ignoreLimitWarning": true
+}

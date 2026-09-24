@@ -1,0 +1,121 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Debug: CMSIS-DAP",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/basic_framework.elf",
+            "device": "STM32F407IG",
+            "svdFile": "${workspaceFolder}/STM32F407.svd",
+            "rtos": "FreeRTOS",
+            "servertype": "openocd",
+            "serverpath": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
+            "gdbPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gdb.exe",
+            "armToolchainPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin",
+            "configFiles": [
+                "${workspaceFolder}/openocd_dap.cfg"
+            ],
+            "searchDir": [
+                "${workspaceFolder}",
+                "D:/ClionToolchains/OpenOCD-20231002-0.12.0/share/openocd/scripts"
+            ],
+            "preLaunchTask": "debug preflight",
+            "postDebugTask": "debug: cleanup stale servers",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "parsed",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 4
+            }
+        },
+        {
+            "name": "Debug: J-Link",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/basic_framework.elf",
+            "device": "STM32F407IG",
+            "svdFile": "${workspaceFolder}/STM32F407.svd",
+            "rtos": "FreeRTOS",
+            "servertype": "openocd",
+            "serverpath": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
+            "gdbPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gdb.exe",
+            "armToolchainPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin",
+            "configFiles": [
+                "${workspaceFolder}/openocd_jlink.cfg"
+            ],
+            "searchDir": [
+                "${workspaceFolder}",
+                "D:/ClionToolchains/OpenOCD-20231002-0.12.0/share/openocd/scripts"
+            ],
+            "preLaunchTask": "debug preflight",
+            "postDebugTask": "debug: cleanup stale servers",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "parsed",
+            "liveWatch": {
+                "enabled": false,
+                "samplesPerSecond": 4
+            }
+        },
+        {
+            "name": "Debug: ST-Link",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/basic_framework.elf",
+            "device": "STM32F407IG",
+            "svdFile": "${workspaceFolder}/STM32F407.svd",
+            "rtos": "FreeRTOS",
+            "servertype": "openocd",
+            "serverpath": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
+            "gdbPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gdb.exe",
+            "armToolchainPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin",
+            "configFiles": [
+                "${workspaceFolder}/openocd_stlink.cfg"
+            ],
+            "searchDir": [
+                "${workspaceFolder}",
+                "D:/ClionToolchains/OpenOCD-20231002-0.12.0/share/openocd/scripts"
+            ],
+            "preLaunchTask": "debug preflight",
+            "postDebugTask": "debug: cleanup stale servers",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "parsed",
+            "liveWatch": {
+                "enabled": false,
+                "samplesPerSecond": 4
+            }
+        },
+        {
+            "name": "Troubleshoot: CMSIS-DAP Attach",
+            "type": "cortex-debug",
+            "request": "attach",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/basic_framework.elf",
+            "device": "STM32F407IG",
+            "svdFile": "${workspaceFolder}/STM32F407.svd",
+            "rtos": "FreeRTOS",
+            "servertype": "openocd",
+            "serverpath": "D:/ClionToolchains/OpenOCD-20231002-0.12.0/bin/openocd.exe",
+            "gdbPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin/arm-none-eabi-gdb.exe",
+            "armToolchainPath": "D:/ClionToolchains/gcc-arm-none-eabi-10.3-2021.10/bin",
+            "configFiles": [
+                "${workspaceFolder}/openocd_dap.cfg"
+            ],
+            "searchDir": [
+                "${workspaceFolder}",
+                "D:/ClionToolchains/OpenOCD-20231002-0.12.0/share/openocd/scripts"
+            ],
+            "preLaunchTask": "debug: prepare workspace",
+            "postDebugTask": "debug: cleanup stale servers",
+            "loadFiles": [],
+            "showDevDebugOutput": "both",
+            "liveWatch": {
+                "enabled": false
+            }
+        }
+    ]
+}
