@@ -21,6 +21,7 @@
 #include "master_process.h"
 
 static INS_t INS;
+static volatile uint8_t ins_attitude_ready;
 static IMU_Param_t IMU_Param;
 static PIDInstance TempCtrl = {0};
 
@@ -99,6 +100,7 @@ attitude_t *INS_Init(void)
     float init_quaternion[4] = {0};
     InitQuaternion(init_quaternion);
     IMU_QuaternionEKF_Init(init_quaternion, 10, 0.001, 1000000, 1, 0);
+    ins_attitude_ready = 0u;
     // imu heat init
     PID_Init_Config_s config = {.MaxOut = 2000,
                                 .IntegralLimit = 300,
@@ -113,6 +115,11 @@ attitude_t *INS_Init(void)
     INS.AccelLPF = 0.0085;
     DWT_GetDeltaT(&INS_DWT_Count);
     return (attitude_t *)&INS.Gyro; // @todo: 这里偷懒了,不要这样做! 修改INT_t结构体可能会导致异常,待修复.
+}
+
+uint8_t INS_IsAttitudeReady(void)
+{
+    return ins_attitude_ready;
 }
 
 /* 注意以1kHz的频率运行此任务 */
@@ -166,6 +173,7 @@ void INS_Task(void)
         INS.Pitch = QEKF_INS.Pitch;
         INS.Roll = QEKF_INS.Roll;
         INS.YawTotalAngle = QEKF_INS.YawTotalAngle;
+        ins_attitude_ready = 1u;
 
         VisionSetAltitude(INS.Yaw, INS.Pitch, INS.Roll);
     }

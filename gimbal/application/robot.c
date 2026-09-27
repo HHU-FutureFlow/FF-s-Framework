@@ -49,6 +49,7 @@ void RobotTask()
 {
 #if defined(ONE_BOARD) || defined(GIMBAL_BOARD)
     RobotCMDTask();
+    NavigationTask();
     GimbalTask();
     ShootTask();
 #endif

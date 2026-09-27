@@ -83,6 +83,7 @@ typedef struct
  *
  */
 attitude_t *INS_Init(void);
+uint8_t INS_IsAttitudeReady(void);
 
 /**
  * @brief 此函数放入实时系统中,以1kHz频率运行
