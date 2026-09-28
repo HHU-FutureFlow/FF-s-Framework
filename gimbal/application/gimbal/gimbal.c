@@ -6,6 +6,7 @@
 #include "general_def.h"
 #include "bmi088.h"
 #include "can_comm.h"
+#include "navigation.h"
 
 static attitude_t *gimba_IMU_data; // 云台IMU数据
 static DJIMotorInstance *pitch_motor;
@@ -106,6 +107,11 @@ void GimbalTask()
     // 获取云台控制数据
     // 后续增加未收到数据的处理
     SubGetMessage(gimbal_sub, &gimbal_cmd_recv);
+    if (INS_IsAttitudeReady() != 0u)
+    {
+        /* 姿态首次可靠后锁存导航 yaw 的零点；NavigationSetYawReference 不会重复覆盖。 */
+        NavigationSetYawReference(GYRO2GIMBAL_DIR_YAW * gimba_IMU_data->YawTotalAngle);
+    }
     gimbal_cmd_recv.pitch = LimitPitchAngle(gimbal_cmd_recv.pitch);
     yaw_cmd_send.yaw_ref = gimbal_cmd_recv.yaw;
     yaw_cmd_send.yaw_angle = GYRO2GIMBAL_DIR_YAW * gimba_IMU_data->YawTotalAngle;
@@ -162,6 +168,7 @@ void GimbalTask()
     gimbal_feedback_data.gimbal_imu_data = *gimba_IMU_data;
     gimbal_feedback_data.yaw_motor_single_round_angle = yaw_motor_single_round_angle;
     gimbal_feedback_data.pitch_motor_single_round_angle = pitch_motor->measure.angle_single_round;
+    gimbal_feedback_data.yaw_online = CANCommIsOnline(yaw_can_comm);
 
     // 推送消息
     PubPushMessage(gimbal_pub, (void *)&gimbal_feedback_data);
