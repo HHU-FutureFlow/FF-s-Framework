@@ -247,6 +247,9 @@ void ChassisTask()
     case CHASSIS_ROTATE:
         chassis_cmd_recv.wz = 60;
         break;
+    case CHASSIS_NAVIGATION:
+        // Navigation owns vx, vy and wz while this mode is selected.
+        break;
     default:
         break;
     }

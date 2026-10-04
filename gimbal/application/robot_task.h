@@ -11,6 +11,7 @@
 #include "motor_task.h"
 #include "referee_task.h"
 #include "master_process.h"
+#include "navigation.h"
 #include "daemon.h"
 #include "HT04.h"
 #include "buzzer.h"
@@ -68,7 +69,9 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
         ins_dt = DWT_GetTimeline_ms() - ins_start;
         if (ins_dt > 1)
             LOGERROR("[freeRTOS] INS Task is being DELAY! dt = [%f]", &ins_dt);
+#if !defined(NAVIGATION_USE_VCP)
         VisionSend(); // 解算完成后发送视觉数据,但是当前的实现不太优雅,后续若添加硬件触发需要重新考虑结构的组织
+#endif
         osDelay(1);
     }
 }

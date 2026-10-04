@@ -13,6 +13,9 @@
 #include "daemon.h"
 #include "bsp_log.h"
 #include "robot_def.h"
+#include "pc_comm.h"
+
+#include <string.h>
 
 static Vision_Recv_s recv_data;
 static Vision_Send_s send_data;
@@ -112,22 +115,28 @@ void VisionSend()
 
 #ifdef VISION_USE_VCP
 
-#include "bsp_usb.h"
-static uint8_t *vis_recv_buff;
-
-static void DecodeVision(uint16_t recv_len)
+static void DecodeVisionFrame(uint16_t command_id,
+                              uint16_t flags,
+                              const uint8_t *payload,
+                              uint16_t payload_length)
 {
-    uint16_t flag_register;
-    get_protocol_info(vis_recv_buff, &flag_register, (uint8_t *)&recv_data.pitch);
-    // TODO: code to resolve flag_register;
+    (void)command_id;
+    (void)flags;
+    if (payload_length < sizeof(float) * 2u)
+    {
+        return;
+    }
+
+    memcpy(&recv_data.pitch, payload, sizeof(float));
+    memcpy(&recv_data.yaw, payload + sizeof(float), sizeof(float));
+    DaemonReload(vision_daemon_instance);
 }
 
 /* 视觉通信初始化 */
 Vision_Recv_s *VisionInit(UART_HandleTypeDef *_handle)
 {
-    UNUSED(_handle); // 仅为了消除警告
-    USB_Init_Config_s conf = {.rx_cbk = DecodeVision};
-    vis_recv_buff = USBInit(conf);
+    UNUSED(_handle); // USB由PCComm统一初始化
+    PCCommRegisterHandler(PC_COMM_CMD_VISION_COMMAND, DecodeVisionFrame);
 
     // 为master process注册daemon,用于判断视觉通信是否离线
     Daemon_Init_Config_s daemon_conf = {
@@ -142,14 +151,22 @@ Vision_Recv_s *VisionInit(UART_HandleTypeDef *_handle)
 
 void VisionSend()
 {
-    static uint16_t flag_register;
-    static uint8_t send_buff[VISION_SEND_SIZE];
-    static uint16_t tx_len;
-    // TODO: code to set flag_register
-    flag_register = 30 << 8 | 0b00000001;
-    // 将数据转化为seasky协议的数据包
-    get_protocol_send_data(0x02, flag_register, &send_data.yaw, 3, send_buff, &tx_len);
-    USBTransmit(send_buff, tx_len);
+    static uint32_t last_send_time;
+    float values[3];
+
+    if ((uint32_t)(HAL_GetTick() - last_send_time) < 20u)
+    {
+        return;
+    }
+
+    values[0] = send_data.yaw;
+    values[1] = send_data.pitch;
+    values[2] = send_data.roll;
+    if (PCCommSendFloats(PC_COMM_CMD_VISION_FEEDBACK,
+                         (uint16_t)(30u << 8u | 0x01u), values, 3u) == PC_COMM_SEND_OK)
+    {
+        last_send_time = HAL_GetTick();
+    }
 }
 
 #endif // VISION_USE_VCP

@@ -132,6 +132,9 @@ modules/imu/ins_task.c \
 modules/ist8310/ist8310.c \
 modules/master_machine/master_process.c \
 modules/master_machine/seasky_protocol.c \
+modules/navigation/navigation.c \
+modules/navigation/navigation_protocol.c \
+modules/pc_comm/pc_comm.c \
 modules/motor/DJImotor/dji_motor.c \
 modules/motor/N630/n630.c \
 modules/motor/HTmotor/HT04.c \
@@ -252,6 +255,8 @@ C_INCLUDES =  \
 -Imodules/imu \
 -Imodules/ist8310 \
 -Imodules/master_machine \
+-Imodules/navigation \
+-Imodules/pc_comm \
 -Imodules/motor/DJImotor \
 -Imodules/motor/N630 \
 -Imodules/motor/LKmotor \

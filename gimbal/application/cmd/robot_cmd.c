@@ -1,8 +1,8 @@
 // app
 #include "robot_def.h"
 
-// Temporary yaw step test. Set to 0 to remove this test behavior.
-#define YAW_STEP_TEST_ENABLE 1
+// Keep the temporary keyboard yaw-step test disabled on the robot.
+#define YAW_STEP_TEST_ENABLE 0
 #define YAW_STEP_TEST_ANGLE 90.0f
 
 #if YAW_STEP_TEST_ENABLE
@@ -16,6 +16,8 @@ static uint8_t yaw_test_last_key_count;
 #include "remote_control.h"
 #include "ins_task.h"
 #include "master_process.h"
+#include "navigation.h"
+#include "pc_comm.h"
 #include "message_center.h"
 #include "general_def.h"
 #include "dji_motor.h"
@@ -90,6 +92,9 @@ static void YawStepTestSet(uint8_t keyboard_mode)
 
 void RobotCMDInit()
 {
+#ifdef GIMBAL_BOARD
+    PCCommInit();
+#endif
     // BMI088_Init_Config_s bmi088_config = {
     //     .cali_mode = BMI088_CALIBRATE_ONLINE_MODE,
     //     .work_mode = BMI088_BLOCK_TRIGGER_MODE,
@@ -152,8 +157,10 @@ void RobotCMDInit()
         },
         .recv_data_len = sizeof(Chassis_Upload_Data_s),
         .send_data_len = sizeof(Chassis_Ctrl_Cmd_s),
+        .daemon_count = 20,
     };
     cmd_can_comm = CANCommInit(&comm_conf);
+    NavigationInit();
 #endif // GIMBAL_BOARD
     gimbal_cmd_send.pitch =
         (PITCH_MAX_ANGLE + PITCH_MIN_ANGLE) * 0.5f;
@@ -413,6 +420,9 @@ static void EmergencyHandler()
 /* 机器人核心控制任务,200Hz频率运行(必须高于视觉发送频率) */
 void RobotCMDTask()
 {
+    NavigationVelocity_s navigation_command;
+    float navigation_yaw_target_rad;
+    float navigation_yaw_zero_deg;
    // BMI088Acquire(bmi088_test,&bmi088_data) ;
     // 从其他应用获取回传数据
 #ifdef ONE_BOARD
@@ -426,6 +436,12 @@ void RobotCMDTask()
 
     // 根据gimbal的反馈值计算云台和底盘正方向的夹角,不需要传参,通过static私有变量完成
     CalcOffsetAngle();
+#ifdef GIMBAL_BOARD
+    /* A7 回传当前云台相对底盘的 yaw；仅在云台反馈在线时标为有效。 */
+    NavigationSetTurretYaw(chassis_cmd_send.offset_angle * DEGREE_2_RAD,
+                           gimbal_fetch_data.yaw_online,
+                           (uint32_t)DWT_GetTimeline_us());
+#endif
     // 根据遥控器左侧开关,确定当前使用的控制模式为遥控器调试还是键鼠
     if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 遥控器左侧开关状态为[下],遥控器控制
         RemoteControlSet();
@@ -434,6 +450,27 @@ void RobotCMDTask()
 
 #if YAW_STEP_TEST_ENABLE
     YawStepTestSet(switch_is_up(rc_data[TEMP].rc.switch_left));
+#endif
+
+#ifdef GIMBAL_BOARD
+    if (NavigationGetCommand(&navigation_command) != 0u)
+    {
+        /* A5 的 vx/vy 保持云台坐标系：底盘沿用 offset_angle 只转换一次再计算轮速。 */
+        chassis_cmd_send.vx = navigation_command.vx * 1000.0f;
+        chassis_cmd_send.vy = navigation_command.vy * 1000.0f;
+        chassis_cmd_send.wz = navigation_command.wz * RAD_2_DEGREE;
+        chassis_cmd_send.chassis_mode = CHASSIS_NAVIGATION;
+    }
+
+    if ((NavigationGetYawTarget(&navigation_yaw_target_rad) != 0u) &&
+        (NavigationGetYawReference(&navigation_yaw_zero_deg) != 0u))
+    {
+        /* A9 是相对 IMU 启动航向的 rad 目标；yaw 控制器使用同一连续角度系的 deg。 */
+        gimbal_cmd_send.yaw =
+            navigation_yaw_zero_deg +
+            NAVIGATION_YAW_TARGET_DIR * navigation_yaw_target_rad * RAD_2_DEGREE;
+        gimbal_cmd_send.gimbal_mode = GIMBAL_GYRO_MODE;
+    }
 #endif
 
     gimbal_cmd_send.pitch = LimitPitchTarget(gimbal_cmd_send.pitch);
