@@ -23,6 +23,7 @@ typedef enum
 // 由于串口是独占的点对点通信,所以不需要考虑多个module同时使用一个串口的情况,因此不用加入id;当然也可以选择加入,这样在bsp层可以访问到module的其他信息
 typedef struct
 {
+    uint16_t recv_size; // Actual DMA/IDLE receive length.
     uint8_t recv_buff[USART_RXBUFF_LIMIT]; // 预先定义的最大buff大小,如果太小请修改USART_RXBUFF_LIMIT
     uint8_t recv_buff_size;                // 模块接收一包数据的大小
     UART_HandleTypeDef *usart_handle;      // 实例对应的usart_handle
@@ -42,6 +43,12 @@ typedef struct
  *
  * @param init_config 传入串口初始化结构体
  */
+/** Configure an initialized, idle UART before USARTRegister starts DMA.
+ * Does not change pins, clocks, IRQ or DMA routing; refuses registered UARTs.
+ */
+HAL_StatusTypeDef USARTConfigure(UART_HandleTypeDef *handle, uint32_t baud_rate,
+                                uint32_t word_length, uint32_t parity, uint32_t stop_bits);
+
 USARTInstance *USARTRegister(USART_Init_Config_s *init_config);
 
 /**
