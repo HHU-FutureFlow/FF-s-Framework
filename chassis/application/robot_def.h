@@ -24,7 +24,7 @@
 #define CHASSIS_BOARD //底盘板
 // #define GIMBAL_BOARD  //云台板
 
-#define VISION_USE_VCP  // 使用虚拟串口发送视觉数据
+// #define VISION_USE_VCP  // 已停用(改动清单F): 底盘板无NUC, 防止与云台板 USB 发送冲突
 // #define VISION_USE_UART // 使用串口发送视觉数据
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
@@ -165,6 +165,8 @@ typedef struct
     float yaw;
     float pitch;
     float chassis_rotate_wz;
+    float yaw_vel;   // yaw 速度前馈(deg/s,视觉下发)
+    float yaw_acc;   // yaw 加速度前馈(rad/s^2,视觉下发)
 
     gimbal_mode_e gimbal_mode;
 } Gimbal_Ctrl_Cmd_s;
@@ -186,9 +188,24 @@ typedef struct
     float yaw_ref;
     float yaw_angle;
     float yaw_gyro;
+    float yaw_vel;//yaw 速度前馈(deg/s,视觉下发)
+    float yaw_acc;//yaw 加速度前馈(rad/s^2,视觉下发)
     uint8_t enable;
     uint8_t mode;
 } Yaw_Ctrl_Cmd_s;
+
+// 板间遥控转发帧: 云台板(遥控器/键鼠所在板)每周期经 CAN1 0x352 转发遥控原始值,
+// 底盘板接收后写入 dbg_rc_* 供 VarScope 观测; 仅转发观测, 不参与底盘控制链路
+typedef struct
+{
+    int16_t rocker_l_;     // 左摇杆水平
+    int16_t rocker_l1;     // 左摇杆竖直
+    int16_t rocker_r_;     // 右摇杆水平
+    int16_t rocker_r1;     // 右摇杆竖直
+    int16_t dial;          // 拨轮
+    uint8_t switch_left;   // 左开关(1上 2下 3中)
+    uint8_t switch_right;  // 右开关
+} RC_Trans_Data_s;
 
 
 
@@ -226,7 +243,7 @@ typedef struct
     float loader_angle;
     float loader_speed;
     float loader_current;
-    
+    float loader_current_ref;
 } Shoot_Upload_Data_s;
 
 typedef struct

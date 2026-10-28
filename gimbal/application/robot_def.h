@@ -23,9 +23,8 @@
 // #define ONE_BOARD // 单板控制整车
 // #define CHASSIS_BOARD //底盘板
 #define GIMBAL_BOARD  //云台板
-#define NAVIGATION_USE_VCP
 
-#define VISION_USE_VCP  // 使用虚拟串口发送视觉数据
+// #define VISION_USE_VCP  // 已停用(改动清单B): 云台板USB由 SP 协议(sp_protocol)独占, 走1kHz SPProtocolSend
 // #define VISION_USE_UART // 使用串口发送视觉数据
 
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
@@ -34,7 +33,7 @@
 #define YAW_ECD_GREATER_THAN_4096 1 // ALIGN_ECD值是否大于4096,是为1,否为0;用于计算云台偏转角度
 #define PITCH_HORIZON_ECD 5680      // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
 #define PITCH_MAX_ANGLE 37.0f           // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
-#define PITCH_MIN_ANGLE -9.0f        // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
+#define PITCH_MIN_ANGLE -31.0f        // 云台竖直方向最小角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
 // 发射参数
 #define ONE_BULLET_DELTA_ANGLE 36    // 发射一发弹丸拨盘转动的距离,由机械设计图纸给出
 #define REDUCTION_RATIO_LOADER 36.0f // 2006拨盘电机的减速比,英雄需要修改为3508的19.0f
@@ -61,7 +60,6 @@
 #define GYRO2GIMBAL_DIR_YAW -1 // 陀螺仪数据相较于云台的yaw的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_PITCH 1 // 陀螺仪数据相较于云台的pitch的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_ROLL 1  // 陀螺仪数据相较于云台的roll的方向,1为相同,-1为相反
-#define NAVIGATION_YAW_TARGET_DIR 1.0f // A9: from above, counterclockwise-positive target direction
 
 // 检查是否出现主控板定义冲突,只允许一个开发板定义存在,否则编译会自动报错
 #if (defined(ONE_BOARD) && defined(CHASSIS_BOARD)) || \
@@ -102,7 +100,6 @@ typedef enum
     CHASSIS_ROTATE,            // 小陀螺模式
     CHASSIS_NO_FOLLOW,         // 不跟随，允许全向平移
     CHASSIS_FOLLOW_GIMBAL_YAW, // 跟随模式，底盘叠加角度环控制
-    CHASSIS_NAVIGATION,
 } chassis_mode_e;
 
 // 云台模式设置
@@ -172,6 +169,8 @@ typedef struct
     float yaw;
     float pitch;
     float chassis_rotate_wz;
+    float yaw_vel;   // yaw 速度前馈(deg/s,视觉下发)
+    float yaw_acc;   // yaw 加速度前馈(rad/s^2,视觉下发)
 
     gimbal_mode_e gimbal_mode;
 } Gimbal_Ctrl_Cmd_s;
@@ -192,9 +191,24 @@ typedef struct
     float yaw_ref;//yaw 目标角度
     float yaw_angle;//yaw 角度外部反馈
     float yaw_gyro;//yaw 速度外部反馈
+    float yaw_vel;//yaw 速度前馈(deg/s,视觉下发)
+    float yaw_acc;//yaw 加速度前馈(rad/s^2,视觉下发)
     uint8_t enable;//yaw 电机使能
     uint8_t mode;//当前云台控制模式
 } Yaw_Ctrl_Cmd_s;
+
+// 板间遥控转发帧: 云台板(遥控器/键鼠所在板)每周期经 CAN1 0x352 转发遥控原始值,
+// 底盘板接收后写入 dbg_rc_* 供 VarScope 观测; 仅转发观测, 不参与底盘控制链路
+typedef struct
+{
+    int16_t rocker_l_;     // 左摇杆水平
+    int16_t rocker_l1;     // 左摇杆竖直
+    int16_t rocker_r_;     // 右摇杆水平
+    int16_t rocker_r1;     // 右摇杆竖直
+    int16_t dial;          // 拨轮
+    uint8_t switch_left;   // 左开关(1上 2下 3中)
+    uint8_t switch_right;  // 右开关
+} RC_Trans_Data_s;
 
 
 
@@ -226,13 +240,14 @@ typedef struct
     attitude_t gimbal_imu_data;
     uint16_t yaw_motor_single_round_angle;
     uint16_t pitch_motor_single_round_angle;
-    uint8_t yaw_online;
 } Gimbal_Upload_Data_s;
 
 typedef struct
 {
-    // code to go here
-    // ...
+    float loader_angle;
+    float loader_speed;
+    float loader_current;
+    float loader_current_ref;
 } Shoot_Upload_Data_s;
 typedef struct
 {

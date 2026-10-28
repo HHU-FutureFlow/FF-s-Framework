@@ -11,7 +11,7 @@
 #include "motor_task.h"
 #include "referee_task.h"
 #include "master_process.h"
-#include "navigation.h"
+#include "sp_protocol.h"
 #include "daemon.h"
 #include "HT04.h"
 #include "buzzer.h"
@@ -60,6 +60,7 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
     static float ins_start;
     static float ins_dt;
     INS_Init(); // 确保BMI088被正确初始化.
+    SPProtocolInit(); // 改动清单D: INS初始化完成后注册 SP 协议(USB VCP 由本模块独占)
     LOGINFO("[freeRTOS] INS Task Start");
     for (;;)
     {
@@ -69,9 +70,7 @@ __attribute__((noreturn)) void StartINSTASK(void const *argument)
         ins_dt = DWT_GetTimeline_ms() - ins_start;
         if (ins_dt > 1)
             LOGERROR("[freeRTOS] INS Task is being DELAY! dt = [%f]", &ins_dt);
-#if !defined(NAVIGATION_USE_VCP)
-        VisionSend(); // 解算完成后发送视觉数据,但是当前的实现不太优雅,后续若添加硬件触发需要重新考虑结构的组织
-#endif
+        SPProtocolSend(); // 改动清单D: 用 SP 协议替换旧 VisionSend(上报云台板自身姿态, 1kHz)
         osDelay(1);
     }
 }

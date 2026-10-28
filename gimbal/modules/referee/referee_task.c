@@ -17,6 +17,9 @@
 
 static Referee_Interactive_info_t *Interactive_data; // UI绘制需要的机器人状态数据
 static referee_info_t *referee_recv_info;            // 接收到的裁判系统数据
+
+// ------------------- VarScope 调试观测变量 -------------------
+volatile float dbg_bullet_speed = 0.0f; // 裁判系统反馈弹速(m/s), UITask 周期刷新
 uint8_t UI_Seq;                                      // 包序号，供整个referee文件使用
 // @todo 不应该使用全局变量
 
@@ -51,6 +54,7 @@ void UITask()
 {
     RobotModeTest(Interactive_data); // 测试用函数，实现模式自动变化,用于检查该任务和裁判系统是否连接正常
     MyUIRefresh(referee_recv_info, Interactive_data);
+    dbg_bullet_speed = referee_recv_info->ShootData.bullet_speed; // VarScope: 裁判反馈弹速
 }
 
 static Graph_Data_t UI_shoot_line[10]; // 射击准线
@@ -193,9 +197,6 @@ static void MyUIRefresh(referee_info_t *referee_recv_info, Referee_Interactive_i
             break;
         case CHASSIS_FOLLOW_GIMBAL_YAW:
             UICharDraw(&UI_State_dyn[0], "sd0", UI_Graph_Change, 8, UI_Color_Main, 15, 2, 270, 750, "follow   ");
-            break;
-        case CHASSIS_NAVIGATION:
-            UICharDraw(&UI_State_dyn[0], "sd0", UI_Graph_Change, 8, UI_Color_Main, 15, 2, 270, 750, "navigate ");
             break;
         }
         UICharRefresh(&referee_recv_info->referee_id, UI_State_dyn[0]);
