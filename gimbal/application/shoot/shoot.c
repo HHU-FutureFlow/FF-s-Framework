@@ -18,6 +18,21 @@ static Subscriber_t *shoot_sub;
 static Shoot_Upload_Data_s shoot_feedback_data; // 来自cmd的发射控制信息
 float friction_l_speed;
 
+// ------------------- VarScope 调试观测变量 -------------------
+// 摩擦轮反馈(speed/cur)已在 dji_motor.c 内做一阶低通滤波, 此处直接桥接滤波后值;
+// out 取电流环输出(最终下发电流量), loader 系列取底盘经 CAN 回传的实测值。
+volatile float dbg_fric_l_speed = 0.0f;    // 左摩擦轮实测转速(滤波后, deg/s)
+volatile float dbg_fric_r_speed = 0.0f;    // 右摩擦轮实测转速(滤波后, deg/s)
+volatile float dbg_fric_l_ref = 0.0f;      // 左摩擦轮目标转速(speed_PID.Ref, deg/s)
+volatile float dbg_fric_r_ref = 0.0f;      // 右摩擦轮目标转速(speed_PID.Ref, deg/s)
+volatile float dbg_fric_l_cur = 0.0f;      // 左摩擦轮实测电流(滤波后, A 计数)
+volatile float dbg_fric_r_cur = 0.0f;      // 右摩擦轮实测电流(滤波后, A 计数)
+volatile float dbg_fric_l_out = 0.0f;      // 左摩擦轮电流环输出(给定电流, 限幅前)
+volatile float dbg_fric_r_out = 0.0f;      // 右摩擦轮电流环输出(给定电流, 限幅前)
+volatile float dbg_loader_speed = 0.0f;    // 拨盘实测转速(底盘回传, deg/s)
+volatile float dbg_loader_cur = 0.0f;      // 拨盘实测电流(底盘回传)
+volatile float dbg_loader_cur_ref = 0.0f;  // 拨盘给定电流 ref(底盘回传)
+
 void ShootInit()
 {
     // 左摩擦轮
@@ -124,7 +139,7 @@ void ShootTask()
             DJIMotorSetRef(friction_l, FRICTION_SPEED_REF_30);
             DJIMotorSetRef(friction_r, FRICTION_SPEED_REF_30);
             break;
-        default: // 当前为了调试设定的默认值4000,因为还没有加入裁判系统无法读取弹速.
+        default: // 注释修正: 未接入裁判系统弹速时, 摩擦轮按 30m/s 档高速预转(40000 deg/s, 与 FRICTION_SPEED_REF_30 一致; 原注释'4000'有误, 不改转速逻辑)
             DJIMotorSetRef(friction_l, 40000);
             DJIMotorSetRef(friction_r, 40000);
             break;
@@ -154,4 +169,17 @@ void ShootTask()
     // 反馈数据,目前暂时没有要设定的反馈数据,后续可能增加应用离线监测以及卡弹反馈
     PubPushMessage(shoot_pub, (void *)&shoot_feedback_data);
     friction_l_speed = friction_l->measure.speed_aps;
+
+    // VarScope 观测变量赋值(摩擦轮反馈已在 dji_motor.c 低通滤波, loader 为底盘回传值)
+    dbg_fric_l_speed = friction_l->measure.speed_aps;
+    dbg_fric_r_speed = -friction_r->measure.speed_aps;
+    dbg_fric_l_ref = friction_l->motor_controller.speed_PID.Ref;
+    dbg_fric_r_ref = friction_r->motor_controller.speed_PID.Ref;
+    dbg_fric_l_cur = (float)friction_l->measure.real_current;
+    dbg_fric_r_cur = (float)friction_r->measure.real_current;
+    dbg_fric_l_out = friction_l->motor_controller.current_PID.Output;
+    dbg_fric_r_out = friction_r->motor_controller.current_PID.Output;
+    dbg_loader_speed = shoot_feedback_data.loader_speed;
+    dbg_loader_cur = shoot_feedback_data.loader_current;
+    dbg_loader_cur_ref = shoot_feedback_data.loader_current_ref;
 }

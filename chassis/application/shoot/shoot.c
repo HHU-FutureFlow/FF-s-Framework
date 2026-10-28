@@ -41,12 +41,12 @@ void ShootInit()
                 .MaxOut = 200,
             },
             .speed_PID = {
-                .Kp = 5, // 10
+                .Kp = 10, // 10
                 .Ki = 0.5, // 1
                 .Kd = 0,
                 .Improve = PID_Integral_Limit,
                 .IntegralLimit = 6000,
-                .MaxOut = 6000,
+                .MaxOut = 10000,
             },
             .current_PID = {
                 .Kp = 0.5, // 0.7
@@ -168,6 +168,8 @@ void ShootTask()
     shoot_feedback_data.loader_angle = loader->measure.total_angle;
     shoot_feedback_data.loader_speed = loader->measure.speed_aps;
     shoot_feedback_data.loader_current = loader->measure.real_current;
+    // 拨盘给定电流 ref: 速度环输出经 DJIMotorControl 写入 current_PID.Ref
+    shoot_feedback_data.loader_current_ref = loader->motor_controller.current_PID.Ref;
     CANCommSend(shoot_can_comm, (uint8_t *)&shoot_feedback_data);
 
 

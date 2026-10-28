@@ -9,6 +9,12 @@ const float K1[4] = {1.23e-07, 1.23e-07, 1.23e-07, 1.23e-07};
 const float K2[4] = {1.453e-07, 1.453e-07, 1.453e-07, 1.453e-07};
 const float constant[4] = {4.081f, 4.081f, 4.081f, 4.081f};
 
+/* 底盘4电机CAN输出电流指令观测变量(VarScope直读) */
+volatile int16_t dbg_chassis_can_cur_lf;
+volatile int16_t dbg_chassis_can_cur_rf;
+volatile int16_t dbg_chassis_can_cur_lb;
+volatile int16_t dbg_chassis_can_cur_rb;
+
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
 static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // 会在control任务中遍历该指针数组进行pid计算
@@ -328,6 +334,20 @@ void PowerControl()
         // 若该电机处于停止状态,直接将buff置零
         if (motor->stop_flag == MOTOR_STOP)
             memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
+
+        // 记录底盘4电机实际CAN输出(停止时置0)
+        if (motor->sender_group == 1 && num < 4)
+        {
+            int16_t can_out = (motor->stop_flag == MOTOR_STOP) ? 0 : set;
+            switch (num)
+            {
+            case 0: dbg_chassis_can_cur_lf = can_out; break;
+            case 1: dbg_chassis_can_cur_rf = can_out; break;
+            case 2: dbg_chassis_can_cur_lb = can_out; break;
+            case 3: dbg_chassis_can_cur_rb = can_out; break;
+            default: break;
+            }
+        }
     }
 
     // 遍历flag,检查是否要发送这一帧报文

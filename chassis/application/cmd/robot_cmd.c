@@ -95,7 +95,7 @@ void RobotCMDInit()
     // };
     //bmi088_test = BMI088Register(&bmi088_config);
    rc_data = RemoteControlInit(&huart3);   // 修改为对应串口,注意如果是自研板dbus协议串口需选用添加了反相器的那个
-    vision_recv_data = VisionInit(&huart1); // 视觉通信串口
+    // vision_recv_data = VisionInit(&huart1); // 已停用(改动清单F): 底盘板无NUC, 视觉通信关闭
 
     gimbal_cmd_pub = PubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
     gimbal_feed_sub = SubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
@@ -175,9 +175,9 @@ static void RemoteControlSet()
         // ...
     }
     // 左侧开关状态为[下],或视觉未识别到目标,纯遥控器拨杆控制
-    if (switch_is_down(rc_data[TEMP].rc.switch_left) || vision_recv_data->target_state == NO_TARGET)
+    if (switch_is_down(rc_data[TEMP].rc.switch_left)) // 左侧开关[下],或底盘无视觉(视觉由云台板按SP协议消费),纯遥控器拨杆控制
     { // 按照摇杆的输出大小进行角度增量,增益系数需调整
-        gimbal_cmd_send.yaw += 0.005f * (float)rc_data[TEMP].rc.rocker_l_;
+        gimbal_cmd_send.yaw += 0.02 * (float)rc_data[TEMP].rc.rocker_l_;
         gimbal_cmd_send.pitch += 0.001f * (float)rc_data[TEMP].rc.rocker_l1;
     }
     // 云台软件限位

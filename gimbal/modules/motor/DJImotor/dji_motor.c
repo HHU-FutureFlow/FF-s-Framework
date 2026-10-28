@@ -4,6 +4,13 @@
 #include "bsp_log.h"
 
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
+
+// ------------------- VarScope 调试观测变量 -------------------
+// 观测 pitch 电机(GM6020, hcan2, tx_id=1)最终下发 CAN 的电流命令(int16,
+// GM6020 限幅 +-16384 后), 供"遥控器控制下电机突然启动电流峰值"排查及
+// 后续 pitch 阻尼/摩擦前馈标定。非 static 全局 volatile, VarScope 直读;
+// 标定结束后可整段删除。
+volatile int16_t dbg_pitch_current_cmd = 0;
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
 static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // 会在control任务中遍历该指针数组进行pid计算
 
@@ -294,11 +301,14 @@ void DJIMotorControl()
             pid_ref *= -1;
 
         // 获取最终输出
-        set = (int16_t)pid_ref;
-         if (motor->motor_type == GM6020)
+        // 注意: GM6020 必须先在浮点域限幅, 再强制转换为 int16_t。
+        // 若先转换后限幅, pid_ref 超出 int16_t 范围时(如 +/-20000)强转会回绕成
+        // 反向数值, 造成电机反向输出(前馈 K 较大时尤其明显)。
+        if (motor->motor_type == GM6020)
         {
-            LIMIT_MIN_MAX(set, -16384, 16384);
+            LIMIT_MIN_MAX(pid_ref, -16384.0f, 16384.0f);
         }
+        set = (int16_t)pid_ref;
 
         // 分组填入发送数据
         group = motor->sender_group;
@@ -309,6 +319,12 @@ void DJIMotorControl()
         // 若该电机处于停止状态,直接将buff置零
         if (motor->stop_flag == MOTOR_STOP)
             memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
+
+        // VarScope 观测: pitch 电机(GM6020, hcan2, tx_id=1)最终下发 CAN 的电流命令,
+        // 停止状态实际下发 0, 故观测值同步置 0
+        // 链路: PID输出+前馈 -> GM6020 限幅 +-16384 -> int16 -> CAN tx_buff
+        if (motor->motor_can_instance->can_handle == &hcan2 && motor->motor_can_instance->tx_id == 1)
+            dbg_pitch_current_cmd = (motor->stop_flag == MOTOR_STOP) ? 0 : set;
     }
 
     // 遍历flag,检查是否要发送这一帧报文

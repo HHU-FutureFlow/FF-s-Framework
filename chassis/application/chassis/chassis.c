@@ -300,6 +300,24 @@ void ChassisTask()
         break;
     }
 
+    // 底盘速度指令由非零跳变到零时, 边沿清零四轮速度环积分, 消除停车积分拖尾
+    static uint8_t chassis_cmd_zero_last = 0;
+    uint8_t chassis_cmd_zero_now = (chassis_cmd_recv.vx > -0.5f && chassis_cmd_recv.vx < 0.5f) &&
+                                   (chassis_cmd_recv.vy > -0.5f && chassis_cmd_recv.vy < 0.5f) &&
+                                   (chassis_cmd_recv.wz > -0.5f && chassis_cmd_recv.wz < 0.5f);
+    if (chassis_cmd_zero_last && !chassis_cmd_zero_now)
+    {
+        motor_lf->motor_controller.speed_PID.Iout  = 0.0f;
+        motor_lf->motor_controller.speed_PID.ITerm = 0.0f;
+        motor_rf->motor_controller.speed_PID.Iout  = 0.0f;
+        motor_rf->motor_controller.speed_PID.ITerm = 0.0f;
+        motor_lb->motor_controller.speed_PID.Iout  = 0.0f;
+        motor_lb->motor_controller.speed_PID.ITerm = 0.0f;
+        motor_rb->motor_controller.speed_PID.Iout  = 0.0f;
+        motor_rb->motor_controller.speed_PID.ITerm = 0.0f;
+    }
+    chassis_cmd_zero_last = chassis_cmd_zero_now;
+
     static float sin_theta, cos_theta;
     cos_theta = arm_cos_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);
     sin_theta = arm_sin_f32(chassis_cmd_recv.offset_angle * DEGREE_2_RAD);

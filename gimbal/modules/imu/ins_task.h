@@ -66,6 +66,9 @@ typedef struct
     uint8_t init;
 } INS_t;
 
+/* 改动清单E: 开放 INS 全局实例, 供 sp_protocol 等模块读取云台板自身姿态反馈 */
+extern INS_t INS;
+
 /* 用于修正安装误差的参数 */
 typedef struct
 {
@@ -83,7 +86,6 @@ typedef struct
  *
  */
 attitude_t *INS_Init(void);
-uint8_t INS_IsAttitudeReady(void);
 
 /**
  * @brief 此函数放入实时系统中,以1kHz频率运行

@@ -1,0 +1,892 @@
+cmake_minimum_required(VERSION 4.3)
+# 裸机交叉编译: 用静态库做编译器可用性测试, 跳过 exe 链接试编译
+# (否则 CMake 会拼 Windows 宿主链接参数如 --major-image-version, 裸机 arm-none-eabi ld 不认导致配置失败)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+project(FF_s_Framework_main C)
+
+set(CMAKE_EXECUTABLE_SUFFIX ".elf")
+
+set(CMAKE_C_STANDARD 11)
+
+include_directories(chassis/.tools)
+include_directories(chassis/.tools/pyocd-venv)
+include_directories(chassis/.tools/pyocd-venv/Lib)
+include_directories(chassis/.tools/pyocd-venv/Lib/site-packages)
+include_directories(chassis/.tools/pyocd-venv/Lib/site-packages/capstone)
+include_directories(chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include)
+include_directories(chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone)
+include_directories(chassis/.tools/pyocd-venv/Lib/site-packages/cffi)
+include_directories(chassis/application)
+include_directories(chassis/application/chassis)
+include_directories(chassis/application/cmd)
+include_directories(chassis/application/gimbal)
+include_directories(chassis/application/shoot)
+include_directories(chassis/bsp)
+include_directories(chassis/bsp/adc)
+include_directories(chassis/bsp/can)
+include_directories(chassis/bsp/dwt)
+include_directories(chassis/bsp/flash)
+include_directories(chassis/bsp/gpio)
+include_directories(chassis/bsp/iic)
+include_directories(chassis/bsp/log)
+include_directories(chassis/bsp/pwm)
+include_directories(chassis/bsp/spi)
+include_directories(chassis/bsp/usart)
+include_directories(chassis/bsp/usb)
+include_directories(chassis/Drivers/CMSIS)
+include_directories(chassis/Drivers/CMSIS/Device)
+include_directories(chassis/Drivers/CMSIS/Device/ST)
+include_directories(chassis/Drivers/CMSIS/Device/ST/STM32F4xx)
+include_directories(chassis/Drivers/CMSIS/Device/ST/STM32F4xx/Include)
+include_directories(chassis/Drivers/CMSIS/Include)
+include_directories(chassis/Drivers/STM32F4xx_HAL_Driver/Inc)
+include_directories(chassis/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy)
+include_directories(chassis/Inc)
+include_directories(chassis/Middlewares/ST/ARM)
+include_directories(chassis/Middlewares/ST/ARM/DSP)
+include_directories(chassis/Middlewares/ST/ARM/DSP/Inc)
+include_directories(chassis/Middlewares/ST/ARM/DSP/Include)
+include_directories(chassis/Middlewares/ST/ARM/DSP/Include/dsp)
+include_directories(chassis/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc)
+include_directories(chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Inc)
+include_directories(chassis/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS)
+include_directories(chassis/Middlewares/Third_Party/FreeRTOS/Source/include)
+include_directories(chassis/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F)
+include_directories(chassis/Middlewares/Third_Party/SEGGER/Config)
+include_directories(chassis/Middlewares/Third_Party/SEGGER/RTT)
+include_directories(chassis/modules)
+include_directories(chassis/modules/alarm)
+include_directories(chassis/modules/algorithm)
+include_directories(chassis/modules/bluetooth)
+include_directories(chassis/modules/BMI088)
+include_directories(chassis/modules/can_comm)
+include_directories(chassis/modules/daemon)
+include_directories(chassis/modules/imu)
+include_directories(chassis/modules/ist8310)
+include_directories(chassis/modules/master_machine)
+include_directories(chassis/modules/message_center)
+include_directories(chassis/modules/motor)
+include_directories(chassis/modules/motor/DJImotor)
+include_directories(chassis/modules/motor/DMmotor)
+include_directories(chassis/modules/motor/HTmotor)
+include_directories(chassis/modules/motor/LKmotor)
+include_directories(chassis/modules/motor/N630)
+include_directories(chassis/modules/motor/servo_motor)
+include_directories(chassis/modules/motor/step_motor)
+include_directories(chassis/modules/oled)
+include_directories(chassis/modules/referee)
+include_directories(chassis/modules/remote)
+include_directories(chassis/modules/standard_cmd)
+include_directories(chassis/modules/super_cap)
+include_directories(chassis/modules/TFminiPlus)
+include_directories(chassis/modules/unicomm)
+include_directories(gimbal/application)
+include_directories(gimbal/application/chassis)
+include_directories(gimbal/application/cmd)
+include_directories(gimbal/application/gimbal)
+include_directories(gimbal/application/shoot)
+include_directories(gimbal/bsp)
+include_directories(gimbal/bsp/adc)
+include_directories(gimbal/bsp/can)
+include_directories(gimbal/bsp/dwt)
+include_directories(gimbal/bsp/flash)
+include_directories(gimbal/bsp/gpio)
+include_directories(gimbal/bsp/iic)
+include_directories(gimbal/bsp/log)
+include_directories(gimbal/bsp/pwm)
+include_directories(gimbal/bsp/spi)
+include_directories(gimbal/bsp/usart)
+include_directories(gimbal/bsp/usb)
+include_directories(gimbal/Drivers/CMSIS)
+include_directories(gimbal/Drivers/CMSIS/Device)
+include_directories(gimbal/Drivers/CMSIS/Device/ST)
+include_directories(gimbal/Drivers/CMSIS/Device/ST/STM32F4xx)
+include_directories(gimbal/Drivers/CMSIS/Device/ST/STM32F4xx/Include)
+include_directories(gimbal/Drivers/CMSIS/Include)
+include_directories(gimbal/Drivers/STM32F4xx_HAL_Driver/Inc)
+include_directories(gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy)
+include_directories(gimbal/Inc)
+include_directories(gimbal/Middlewares/ST/ARM)
+include_directories(gimbal/Middlewares/ST/ARM/DSP)
+include_directories(gimbal/Middlewares/ST/ARM/DSP/Inc)
+include_directories(gimbal/Middlewares/ST/ARM/DSP/Include)
+include_directories(gimbal/Middlewares/ST/ARM/DSP/Include/dsp)
+include_directories(gimbal/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc)
+include_directories(gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Inc)
+include_directories(gimbal/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS)
+include_directories(gimbal/Middlewares/Third_Party/FreeRTOS/Source/include)
+include_directories(gimbal/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F)
+include_directories(gimbal/Middlewares/Third_Party/SEGGER/Config)
+include_directories(gimbal/Middlewares/Third_Party/SEGGER/RTT)
+include_directories(gimbal/modules)
+include_directories(gimbal/modules/alarm)
+include_directories(gimbal/modules/algorithm)
+include_directories(gimbal/modules/bluetooth)
+include_directories(gimbal/modules/BMI088)
+include_directories(gimbal/modules/can_comm)
+include_directories(gimbal/modules/daemon)
+include_directories(gimbal/modules/imu)
+include_directories(gimbal/modules/ist8310)
+include_directories(gimbal/modules/master_machine)
+include_directories(gimbal/modules/message_center)
+include_directories(gimbal/modules/motor)
+include_directories(gimbal/modules/motor/DJImotor)
+include_directories(gimbal/modules/motor/DMmotor)
+include_directories(gimbal/modules/motor/HTmotor)
+include_directories(gimbal/modules/motor/LKmotor)
+include_directories(gimbal/modules/motor/N630)
+include_directories(gimbal/modules/motor/servo_motor)
+include_directories(gimbal/modules/motor/step_motor)
+include_directories(gimbal/modules/oled)
+include_directories(gimbal/modules/referee)
+include_directories(gimbal/modules/remote)
+include_directories(gimbal/modules/standard_cmd)
+include_directories(gimbal/modules/super_cap)
+include_directories(gimbal/modules/TFminiPlus)
+include_directories(gimbal/modules/unicomm)
+
+add_executable(FF_s_Framework_main
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/arm.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/arm64.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/bpf.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/capstone.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/evm.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/m680x.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/m68k.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/mips.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/mos65xx.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/platform.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/ppc.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/riscv.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/sh.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/sparc.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/systemz.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/tms320c64x.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/tricore.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/wasm.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/x86.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/capstone/include/capstone/xcore.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/cffi/_cffi_errors.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/cffi/_cffi_include.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/cffi/_embedding.h
+        chassis/.tools/pyocd-venv/Lib/site-packages/cffi/parse_c_type.h
+        chassis/application/chassis/balance.h
+        chassis/application/chassis/chassis.c
+        chassis/application/chassis/chassis.h
+        chassis/application/chassis/mecanum.h
+        chassis/application/chassis/steering.h
+        chassis/application/cmd/robot_cmd.c
+        chassis/application/cmd/robot_cmd.h
+        chassis/application/gimbal/gimbal.c
+        chassis/application/gimbal/gimbal.h
+        chassis/application/shoot/shoot.c
+        chassis/application/shoot/shoot.h
+        chassis/application/robot.c
+        chassis/application/robot.h
+        chassis/application/robot_def.h
+        chassis/application/robot_task.h
+        chassis/bsp/adc/bsp_adc.c
+        chassis/bsp/adc/bsp_adc.h
+        chassis/bsp/can/bsp_can.c
+        chassis/bsp/can/bsp_can.h
+        chassis/bsp/dwt/bsp_dwt.c
+        chassis/bsp/dwt/bsp_dwt.h
+        chassis/bsp/flash/bsp_flash.c
+        chassis/bsp/flash/bsp_flash.h
+        chassis/bsp/gpio/bsp_gpio.c
+        chassis/bsp/gpio/bsp_gpio.h
+        chassis/bsp/iic/bsp_iic.c
+        chassis/bsp/iic/bsp_iic.h
+        chassis/bsp/log/bsp_log.c
+        chassis/bsp/log/bsp_log.h
+        chassis/bsp/pwm/bsp_pwm.c
+        chassis/bsp/pwm/bsp_pwm.h
+        chassis/bsp/spi/bsp_spi.c
+        chassis/bsp/spi/bsp_spi.h
+        chassis/bsp/usart/bsp_usart.c
+        chassis/bsp/usart/bsp_usart.h
+        chassis/bsp/usb/bsp_usb.c
+        chassis/bsp/usb/bsp_usb.h
+        chassis/bsp/bsp_init.h
+        chassis/bsp/bsp_tools.c
+        chassis/bsp/bsp_tools.h
+        chassis/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
+        chassis/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
+        chassis/Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
+        chassis/Drivers/CMSIS/Include/cmsis_armcc.h
+        chassis/Drivers/CMSIS/Include/cmsis_armclang.h
+        chassis/Drivers/CMSIS/Include/cmsis_compiler.h
+        chassis/Drivers/CMSIS/Include/cmsis_gcc.h
+        chassis/Drivers/CMSIS/Include/cmsis_iccarm.h
+        chassis/Drivers/CMSIS/Include/cmsis_version.h
+        chassis/Drivers/CMSIS/Include/core_armv8mbl.h
+        chassis/Drivers/CMSIS/Include/core_armv8mml.h
+        chassis/Drivers/CMSIS/Include/core_cm0.h
+        chassis/Drivers/CMSIS/Include/core_cm0plus.h
+        chassis/Drivers/CMSIS/Include/core_cm1.h
+        chassis/Drivers/CMSIS/Include/core_cm23.h
+        chassis/Drivers/CMSIS/Include/core_cm3.h
+        chassis/Drivers/CMSIS/Include/core_cm33.h
+        chassis/Drivers/CMSIS/Include/core_cm4.h
+        chassis/Drivers/CMSIS/Include/core_cm7.h
+        chassis/Drivers/CMSIS/Include/core_sc000.h
+        chassis/Drivers/CMSIS/Include/core_sc300.h
+        chassis/Drivers/CMSIS/Include/mpu_armv7.h
+        chassis/Drivers/CMSIS/Include/mpu_armv8.h
+        chassis/Drivers/CMSIS/Include/tz_context.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_can.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_crc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_exti.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rng.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_adc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_bus.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_cortex.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_crc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dac.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dma.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_exti.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_gpio.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_i2c.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_pwr.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rcc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rng.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rtc.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_system.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_tim.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_utils.h
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_crc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc.c
+        chassis/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c
+        chassis/Inc/adc.h
+        chassis/Inc/can.h
+        chassis/Inc/crc.h
+        chassis/Inc/dac.h
+        chassis/Inc/dma.h
+        chassis/Inc/FreeRTOSConfig.h
+        chassis/Inc/gpio.h
+        chassis/Inc/i2c.h
+        chassis/Inc/main.h
+        chassis/Inc/rng.h
+        chassis/Inc/rtc.h
+        chassis/Inc/spi.h
+        chassis/Inc/stm32f4xx_hal_conf.h
+        chassis/Inc/stm32f4xx_it.h
+        chassis/Inc/tim.h
+        chassis/Inc/usart.h
+        chassis/Inc/usb_device.h
+        chassis/Inc/usbd_cdc_if.h
+        chassis/Inc/usbd_conf.h
+        chassis/Inc/usbd_desc.h
+        chassis/Middlewares/ST/ARM/DSP/Inc/arm_math.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/basic_math_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/basic_math_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/bayes_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/bayes_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/complex_math_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/complex_math_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/controller_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/controller_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/debug.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/distance_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/distance_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/fast_math_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/fast_math_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/filtering_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/filtering_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/interpolation_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/interpolation_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/matrix_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/matrix_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/matrix_utils.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/none.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/quaternion_math_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/statistics_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/statistics_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/support_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/support_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/svm_defines.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/svm_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/svm_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/transform_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/transform_functions_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/utils.h
+        chassis/Middlewares/ST/ARM/DSP/Include/dsp/window_functions.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_common_tables.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_common_tables_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_const_structs.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_const_structs_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_helium_utils.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_math.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_math_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_math_memory.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_math_types.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_math_types_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_mve_tables.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_mve_tables_f16.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_vec_math.h
+        chassis/Middlewares/ST/ARM/DSP/Include/arm_vec_math_f16.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
+        chassis/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/atomic.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/croutine.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/message_buffer.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/mpu_prototypes.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/stack_macros.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/StackMacros.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/stream_buffer.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/portmacro.h
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/croutine.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/list.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/queue.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/tasks.c
+        chassis/Middlewares/Third_Party/FreeRTOS/Source/timers.c
+        chassis/Middlewares/Third_Party/SEGGER/Config/SEGGER_RTT_Conf.h
+        chassis/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT.c
+        chassis/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT.h
+        chassis/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT_printf.c
+        chassis/modules/alarm/buzzer.c
+        chassis/modules/alarm/buzzer.h
+        chassis/modules/algorithm/controller.c
+        chassis/modules/algorithm/controller.h
+        chassis/modules/algorithm/crc16.c
+        chassis/modules/algorithm/crc16.h
+        chassis/modules/algorithm/crc8.c
+        chassis/modules/algorithm/crc8.h
+        chassis/modules/algorithm/kalman_filter.c
+        chassis/modules/algorithm/kalman_filter.h
+        chassis/modules/algorithm/QuaternionEKF.c
+        chassis/modules/algorithm/QuaternionEKF.h
+        chassis/modules/algorithm/user_lib.c
+        chassis/modules/algorithm/user_lib.h
+        chassis/modules/bluetooth/HC05.c
+        chassis/modules/bluetooth/HC05.h
+        chassis/modules/BMI088/bmi088.c
+        chassis/modules/BMI088/bmi088.h
+        chassis/modules/BMI088/bmi088_regNdef.h
+        chassis/modules/can_comm/can_comm.c
+        chassis/modules/can_comm/can_comm.h
+        chassis/modules/daemon/daemon.c
+        chassis/modules/daemon/daemon.h
+        chassis/modules/imu/BMI088driver.c
+        chassis/modules/imu/BMI088driver.h
+        chassis/modules/imu/BMI088Middleware.c
+        chassis/modules/imu/BMI088Middleware.h
+        chassis/modules/imu/BMI088reg.h
+        chassis/modules/imu/ins_task.c
+        chassis/modules/imu/ins_task.h
+        chassis/modules/ist8310/ist8310.c
+        chassis/modules/ist8310/ist8310.h
+        chassis/modules/master_machine/master_process.c
+        chassis/modules/master_machine/master_process.h
+        chassis/modules/master_machine/seasky_protocol.c
+        chassis/modules/master_machine/seasky_protocol.h
+        chassis/modules/message_center/message_center.c
+        chassis/modules/message_center/message_center.h
+        chassis/modules/motor/DJImotor/dji_motor.c
+        chassis/modules/motor/DJImotor/dji_motor.h
+        chassis/modules/motor/DMmotor/dmmotor.c
+        chassis/modules/motor/DMmotor/dmmotor.h
+        chassis/modules/motor/HTmotor/HT04.c
+        chassis/modules/motor/HTmotor/HT04.h
+        chassis/modules/motor/LKmotor/LK9025.c
+        chassis/modules/motor/LKmotor/LK9025.h
+        chassis/modules/motor/N630/n630.c
+        chassis/modules/motor/N630/n630.h
+        chassis/modules/motor/servo_motor/servo_motor.c
+        chassis/modules/motor/servo_motor/servo_motor.h
+        chassis/modules/motor/step_motor/step_motor.c
+        chassis/modules/motor/step_motor/step_motor.h
+        chassis/modules/motor/motor_def.h
+        chassis/modules/motor/motor_task.c
+        chassis/modules/motor/motor_task.h
+        chassis/modules/motor/power_control.c
+        chassis/modules/motor/power_control.h
+        chassis/modules/oled/oled.c
+        chassis/modules/oled/oled.h
+        chassis/modules/oled/oledfont.h
+        chassis/modules/referee/crc_ref.c
+        chassis/modules/referee/crc_ref.h
+        chassis/modules/referee/referee_protocol.h
+        chassis/modules/referee/referee_task.c
+        chassis/modules/referee/referee_task.h
+        chassis/modules/referee/referee_UI.c
+        chassis/modules/referee/referee_UI.h
+        chassis/modules/referee/rm_referee.c
+        chassis/modules/referee/rm_referee.h
+        chassis/modules/remote/remote_control.c
+        chassis/modules/remote/remote_control.h
+        chassis/modules/standard_cmd/std_cmd.c
+        chassis/modules/standard_cmd/std_cmd.h
+        chassis/modules/super_cap/super_cap.c
+        chassis/modules/super_cap/super_cap.h
+        chassis/modules/TFminiPlus/tfminiplus.c
+        chassis/modules/TFminiPlus/tfminiplus.h
+        chassis/modules/unicomm/unicomm.c
+        chassis/modules/unicomm/unicomm.h
+        chassis/modules/general_def.h
+        chassis/Src/adc.c
+        chassis/Src/can.c
+        chassis/Src/crc.c
+        chassis/Src/dac.c
+        chassis/Src/dma.c
+        chassis/Src/freertos.c
+        chassis/Src/gpio.c
+        chassis/Src/i2c.c
+        chassis/Src/main.c
+        chassis/Src/rng.c
+        chassis/Src/rtc.c
+        chassis/Src/spi.c
+        chassis/Src/stm32f4xx_hal_msp.c
+        chassis/Src/stm32f4xx_hal_timebase_tim.c
+        chassis/Src/stm32f4xx_it.c
+        chassis/Src/system_stm32f4xx.c
+        chassis/Src/tim.c
+        chassis/Src/usart.c
+        chassis/Src/usb_device.c
+        chassis/Src/usbd_cdc_if.c
+        chassis/Src/usbd_conf.c
+        chassis/Src/usbd_desc.c
+        gimbal/application/chassis/balance.h
+        gimbal/application/chassis/chassis.c
+        gimbal/application/chassis/chassis.h
+        gimbal/application/chassis/mecanum.h
+        gimbal/application/chassis/steering.h
+        gimbal/application/cmd/robot_cmd.c
+        gimbal/application/cmd/robot_cmd.h
+        gimbal/application/gimbal/gimbal.c
+        gimbal/application/gimbal/gimbal.h
+        gimbal/application/shoot/shoot.c
+        gimbal/application/shoot/shoot.h
+        gimbal/application/robot.c
+        gimbal/application/robot.h
+        gimbal/application/robot_def.h
+        gimbal/application/robot_task.h
+        gimbal/bsp/adc/bsp_adc.c
+        gimbal/bsp/adc/bsp_adc.h
+        gimbal/bsp/can/bsp_can.c
+        gimbal/bsp/can/bsp_can.h
+        gimbal/bsp/dwt/bsp_dwt.c
+        gimbal/bsp/dwt/bsp_dwt.h
+        gimbal/bsp/flash/bsp_flash.c
+        gimbal/bsp/flash/bsp_flash.h
+        gimbal/bsp/gpio/bsp_gpio.c
+        gimbal/bsp/gpio/bsp_gpio.h
+        gimbal/bsp/iic/bsp_iic.c
+        gimbal/bsp/iic/bsp_iic.h
+        gimbal/bsp/log/bsp_log.c
+        gimbal/bsp/log/bsp_log.h
+        gimbal/bsp/pwm/bsp_pwm.c
+        gimbal/bsp/pwm/bsp_pwm.h
+        gimbal/bsp/spi/bsp_spi.c
+        gimbal/bsp/spi/bsp_spi.h
+        gimbal/bsp/usart/bsp_usart.c
+        gimbal/bsp/usart/bsp_usart.h
+        gimbal/bsp/usb/bsp_usb.c
+        gimbal/bsp/usb/bsp_usb.h
+        gimbal/bsp/bsp_init.h
+        gimbal/bsp/bsp_tools.c
+        gimbal/bsp/bsp_tools.h
+        gimbal/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
+        gimbal/Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
+        gimbal/Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
+        gimbal/Drivers/CMSIS/Include/cmsis_armcc.h
+        gimbal/Drivers/CMSIS/Include/cmsis_armclang.h
+        gimbal/Drivers/CMSIS/Include/cmsis_compiler.h
+        gimbal/Drivers/CMSIS/Include/cmsis_gcc.h
+        gimbal/Drivers/CMSIS/Include/cmsis_iccarm.h
+        gimbal/Drivers/CMSIS/Include/cmsis_version.h
+        gimbal/Drivers/CMSIS/Include/core_armv8mbl.h
+        gimbal/Drivers/CMSIS/Include/core_armv8mml.h
+        gimbal/Drivers/CMSIS/Include/core_cm0.h
+        gimbal/Drivers/CMSIS/Include/core_cm0plus.h
+        gimbal/Drivers/CMSIS/Include/core_cm1.h
+        gimbal/Drivers/CMSIS/Include/core_cm23.h
+        gimbal/Drivers/CMSIS/Include/core_cm3.h
+        gimbal/Drivers/CMSIS/Include/core_cm33.h
+        gimbal/Drivers/CMSIS/Include/core_cm4.h
+        gimbal/Drivers/CMSIS/Include/core_cm7.h
+        gimbal/Drivers/CMSIS/Include/core_sc000.h
+        gimbal/Drivers/CMSIS/Include/core_sc300.h
+        gimbal/Drivers/CMSIS/Include/mpu_armv7.h
+        gimbal/Drivers/CMSIS/Include/mpu_armv8.h
+        gimbal/Drivers/CMSIS/Include/tz_context.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_can.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_cortex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_crc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dac_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_dma_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_exti.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rng.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rtc_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_spi.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_adc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_bus.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_cortex.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_crc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dac.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dma.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_exti.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_gpio.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_i2c.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_pwr.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rcc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rng.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_rtc.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_system.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_tim.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_utils.h
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_crc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rtc_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_adc.c
+        gimbal/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c
+        gimbal/Inc/adc.h
+        gimbal/Inc/can.h
+        gimbal/Inc/crc.h
+        gimbal/Inc/dac.h
+        gimbal/Inc/dma.h
+        gimbal/Inc/FreeRTOSConfig.h
+        gimbal/Inc/gpio.h
+        gimbal/Inc/i2c.h
+        gimbal/Inc/main.h
+        gimbal/Inc/rng.h
+        gimbal/Inc/rtc.h
+        gimbal/Inc/spi.h
+        gimbal/Inc/stm32f4xx_hal_conf.h
+        gimbal/Inc/stm32f4xx_it.h
+        gimbal/Inc/tim.h
+        gimbal/Inc/usart.h
+        gimbal/Inc/usb_device.h
+        gimbal/Inc/usbd_cdc_if.h
+        gimbal/Inc/usbd_conf.h
+        gimbal/Inc/usbd_desc.h
+        gimbal/Middlewares/ST/ARM/DSP/Inc/arm_math.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/basic_math_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/basic_math_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/bayes_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/bayes_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/complex_math_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/complex_math_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/controller_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/controller_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/debug.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/distance_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/distance_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/fast_math_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/fast_math_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/filtering_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/filtering_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/interpolation_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/interpolation_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/matrix_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/matrix_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/matrix_utils.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/none.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/quaternion_math_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/statistics_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/statistics_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/support_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/support_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/svm_defines.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/svm_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/svm_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/transform_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/transform_functions_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/utils.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/dsp/window_functions.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_common_tables.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_common_tables_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_const_structs.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_const_structs_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_helium_utils.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_math.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_math_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_math_memory.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_math_types.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_math_types_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_mve_tables.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_mve_tables_f16.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_vec_math.h
+        gimbal/Middlewares/ST/ARM/DSP/Include/arm_vec_math_f16.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
+        gimbal/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/atomic.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/croutine.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/message_buffer.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/mpu_prototypes.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/stack_macros.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/StackMacros.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/stream_buffer.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/portmacro.h
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/croutine.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/list.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/queue.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/stream_buffer.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/tasks.c
+        gimbal/Middlewares/Third_Party/FreeRTOS/Source/timers.c
+        gimbal/Middlewares/Third_Party/SEGGER/Config/SEGGER_RTT_Conf.h
+        gimbal/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT.c
+        gimbal/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT.h
+        gimbal/Middlewares/Third_Party/SEGGER/RTT/SEGGER_RTT_printf.c
+        gimbal/modules/alarm/buzzer.c
+        gimbal/modules/alarm/buzzer.h
+        gimbal/modules/algorithm/controller.c
+        gimbal/modules/algorithm/controller.h
+        gimbal/modules/algorithm/crc16.c
+        gimbal/modules/algorithm/crc16.h
+        gimbal/modules/algorithm/crc8.c
+        gimbal/modules/algorithm/crc8.h
+        gimbal/modules/algorithm/kalman_filter.c
+        gimbal/modules/algorithm/kalman_filter.h
+        gimbal/modules/algorithm/QuaternionEKF.c
+        gimbal/modules/algorithm/QuaternionEKF.h
+        gimbal/modules/algorithm/user_lib.c
+        gimbal/modules/algorithm/user_lib.h
+        gimbal/modules/bluetooth/HC05.c
+        gimbal/modules/bluetooth/HC05.h
+        gimbal/modules/BMI088/bmi088.c
+        gimbal/modules/BMI088/bmi088.h
+        gimbal/modules/BMI088/bmi088_regNdef.h
+        gimbal/modules/can_comm/can_comm.c
+        gimbal/modules/can_comm/can_comm.h
+        gimbal/modules/daemon/daemon.c
+        gimbal/modules/daemon/daemon.h
+        gimbal/modules/imu/BMI088driver.c
+        gimbal/modules/imu/BMI088driver.h
+        gimbal/modules/imu/BMI088Middleware.c
+        gimbal/modules/imu/BMI088Middleware.h
+        gimbal/modules/imu/BMI088reg.h
+        gimbal/modules/imu/ins_task.c
+        gimbal/modules/imu/ins_task.h
+        gimbal/modules/ist8310/ist8310.c
+        gimbal/modules/ist8310/ist8310.h
+        gimbal/modules/master_machine/master_process.c
+        gimbal/modules/master_machine/master_process.h
+        gimbal/modules/master_machine/seasky_protocol.c
+        gimbal/modules/master_machine/seasky_protocol.h
+        gimbal/modules/message_center/message_center.c
+        gimbal/modules/message_center/message_center.h
+        gimbal/modules/motor/DJImotor/dji_motor.c
+        gimbal/modules/motor/DJImotor/dji_motor.h
+        gimbal/modules/motor/DMmotor/dmmotor.c
+        gimbal/modules/motor/DMmotor/dmmotor.h
+        gimbal/modules/motor/HTmotor/HT04.c
+        gimbal/modules/motor/HTmotor/HT04.h
+        gimbal/modules/motor/LKmotor/LK9025.c
+        gimbal/modules/motor/LKmotor/LK9025.h
+        gimbal/modules/motor/N630/n630.c
+        gimbal/modules/motor/N630/n630.h
+        gimbal/modules/motor/servo_motor/servo_motor.c
+        gimbal/modules/motor/servo_motor/servo_motor.h
+        gimbal/modules/motor/step_motor/step_motor.c
+        gimbal/modules/motor/step_motor/step_motor.h
+        gimbal/modules/motor/motor_def.h
+        gimbal/modules/motor/motor_task.c
+        gimbal/modules/motor/motor_task.h
+        gimbal/modules/motor/power_control.c
+        gimbal/modules/motor/power_control.h
+        gimbal/modules/oled/oled.c
+        gimbal/modules/oled/oled.h
+        gimbal/modules/oled/oledfont.h
+        gimbal/modules/referee/crc_ref.c
+        gimbal/modules/referee/crc_ref.h
+        gimbal/modules/referee/referee_protocol.h
+        gimbal/modules/referee/referee_task.c
+        gimbal/modules/referee/referee_task.h
+        gimbal/modules/referee/referee_UI.c
+        gimbal/modules/referee/referee_UI.h
+        gimbal/modules/referee/rm_referee.c
+        gimbal/modules/referee/rm_referee.h
+        gimbal/modules/remote/remote_control.c
+        gimbal/modules/remote/remote_control.h
+        gimbal/modules/standard_cmd/std_cmd.c
+        gimbal/modules/standard_cmd/std_cmd.h
+        gimbal/modules/super_cap/super_cap.c
+        gimbal/modules/super_cap/super_cap.h
+        gimbal/modules/TFminiPlus/tfminiplus.c
+        gimbal/modules/TFminiPlus/tfminiplus.h
+        gimbal/modules/unicomm/unicomm.c
+        gimbal/modules/unicomm/unicomm.h
+        gimbal/modules/general_def.h
+        gimbal/Src/adc.c
+        gimbal/Src/can.c
+        gimbal/Src/crc.c
+        gimbal/Src/dac.c
+        gimbal/Src/dma.c
+        gimbal/Src/freertos.c
+        gimbal/Src/gpio.c
+        gimbal/Src/i2c.c
+        gimbal/Src/main.c
+        gimbal/Src/rng.c
+        gimbal/Src/rtc.c
+        gimbal/Src/spi.c
+        gimbal/Src/stm32f4xx_hal_msp.c
+        gimbal/Src/stm32f4xx_hal_timebase_tim.c
+        gimbal/Src/stm32f4xx_it.c
+        gimbal/Src/system_stm32f4xx.c
+        gimbal/Src/tim.c
+        gimbal/Src/usart.c
+        gimbal/Src/usb_device.c
+        gimbal/Src/usbd_cdc_if.c
+        gimbal/Src/usbd_conf.c
+        gimbal/Src/usbd_desc.c)

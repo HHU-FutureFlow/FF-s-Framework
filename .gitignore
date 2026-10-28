@@ -1,0 +1,42 @@
+# ---- 构建产物 ----
+cmake-build-*/
+build/
+out/
+*.o
+*.a
+*.so
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+*.axf
+*.d
+*.srec
+*.ihex
+
+# ---- IDE / 编辑器 ----
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- 日志 / 杂项 ----
+*.log
+*.tmp
+*.bak
+*.bak_*
+
+# ---- 生成/缓存 ----
+CMakeCache.txt
+CMakeFiles/
+Makefile
+ninja*
+
+# ---- 固件烧录临时 ----
+*.jlink
+*.openocd

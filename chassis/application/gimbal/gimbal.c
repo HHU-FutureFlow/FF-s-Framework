@@ -9,10 +9,26 @@
 
 static DJIMotorInstance *yaw_motor;
 static CANCommInstance *yaw_can_comm;
+static CANCommInstance *rc_can_comm;  // 遥控原始值转发接收(CAN 0x352, 云台→底盘)
+static RC_Trans_Data_s rc_trans_recv; // 解包后的遥控原始值
 
 static Yaw_Ctrl_Cmd_s yaw_cmd_recv;
 static Yaw_Upload_Data_s yaw_feedback_send;
 static float yaw_speed_feedback_deg_per_sec;
+
+/* ======================= Yaw 速度+加速度前馈 ==========================
+ * 云台板经 0x350 下发视觉前馈字段(源: 视觉 SP yaw_vel/yaw_acc, VisionAimSet 消费,
+ * 云台板 K_FF_YAW 透传), 底盘侧注入:
+ *   yaw_speed_ff  (deg/s)  -> 速度环前馈 SPEED_FEEDFORWARD(与速度反馈同域);
+ *   yaw_current_ff(控制量) -> 末端电流前馈 CURRENT_FEEDFORWARD(乘 K_ACC_YAW).
+ * K_ACC_YAW 初值 1.0(纯透传), 与云台板 K_FF_YAW 一起待实车标定:
+ *   先固定 K_FF_YAW=1.0 小步试探 K_ACC_YAW(0.3 -> 0.6 -> 1.0),
+ *   确认高速段跟随改善且无振荡后逐级加大; 符号方向错误表现为跟随反向/振荡,
+ *   应立即置 0 复核(视觉符号已由 VISION_YAW_SIGN 在消费口取反).
+ * ==================================================================== */
+#define K_ACC_YAW 0.0f   // yaw 加速度前馈增益(待实车标定)
+static float yaw_speed_ff;   // yaw 速度前馈量(deg/s, 注入速度环)
+static float yaw_current_ff; // yaw 电流前馈量(控制量计数, 注入末端)
 
 // Standalone debug symbols for VarScope.这里是为了调参临时创建的调试变量，方便Varscope监视。
 volatile float yaw_debug_angle_pid_ref;
@@ -35,6 +51,19 @@ volatile uint16_t yaw_debug_motor_ecd;
 volatile float yaw_debug_motor_angle_single_round;
 volatile float yaw_debug_motor_total_angle;
 volatile float yaw_debug_gyro_deg_per_sec;
+
+// Standalone debug symbols for VarScope (chassis yaw monitor)
+volatile float dbg_yaw_cmd;   // yaw 命令量(底盘侧消费的目标角度), 单位 deg
+volatile float dbg_yaw_angle; // yaw 电机实际角度, 单位 deg
+volatile float dbg_yaw_gyro;  // yaw 电机实际角速度, 单位 deg/s
+
+// Standalone debug symbols for VarScope: 遥控原始值由云台板经 CAN 0x352 每周期转发,
+// 底盘板 GimbalTask 解包后赋值(底盘板 RobotCMDTask 未被链接, 原赋值点已失效)
+volatile float dbg_rc_rocker_l_ = 0.0f; // 左水平
+volatile float dbg_rc_rocker_l1 = 0.0f; // 左竖直
+volatile float dbg_rc_rocker_r_ = 0.0f; // 右水平
+volatile float dbg_rc_rocker_r1 = 0.0f; // 右竖直
+volatile float dbg_rc_dial      = 0.0f; // 拨轮
 
 static void UpdateYawDebugData()
 {
@@ -63,6 +92,10 @@ static void UpdateYawDebugData()
     yaw_debug_motor_angle_single_round = yaw_motor->measure.angle_single_round;
     yaw_debug_motor_total_angle = yaw_motor->measure.total_angle;
     yaw_debug_gyro_deg_per_sec = yaw_speed_feedback_deg_per_sec;
+
+    dbg_yaw_cmd = yaw_cmd_recv.yaw_ref;
+    dbg_yaw_angle = yaw_cmd_recv.yaw_angle;
+    dbg_yaw_gyro = yaw_speed_feedback_deg_per_sec;
 }
 
 static Publisher_t *gimbal_pub;                   // 云台应用消息发布者(云台反馈给cmd)
@@ -82,9 +115,9 @@ void GimbalInit()
         },
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp = 6, // 8
+                .Kp = 13, // 8
                 .Ki = 0,
-                .Kd = 0.5,
+                .Kd = 0.3,
                 .DeadBand = 0.1,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 100,
@@ -92,8 +125,8 @@ void GimbalInit()
                 .MaxOut = 500,
             },
             .speed_PID = {
-                .Kp = 60, 
-                .Ki = 10, 
+                .Kp = 80,
+                .Ki = 15,
                 .Kd = 0,
                 .Improve = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .IntegralLimit = 3000,
@@ -102,6 +135,10 @@ void GimbalInit()
             .other_angle_feedback_ptr = &yaw_cmd_recv.yaw_angle,
             // 还需要增加角速度额外反馈指针,注意方向,ins_task.md中有c板的bodyframe坐标系说明
             .other_speed_feedback_ptr = &yaw_speed_feedback_deg_per_sec,
+            // yaw 前馈注入点: 速度环前 yaw_speed_ff(deg/s, 与速度反馈同域),
+            // 末端电流前馈 yaw_current_ff(控制量, 乘 K_ACC_YAW)
+            .speed_feedforward_ptr = &yaw_speed_ff,
+            .current_feedforward_ptr = &yaw_current_ff,
         },
         .controller_setting_init_config = {
             .angle_feedback_source = OTHER_FEED,
@@ -110,6 +147,9 @@ void GimbalInit()
             .close_loop_type = ANGLE_LOOP | SPEED_LOOP,
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
             .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
+            // 使能速度环+电流环前馈通道; 必须与 feedforward_ptr 成对设置,
+            // 只置标志位而不填指针会解引用 NULL 导致硬件错误
+            .feedforward_flag = CURRENT_AND_SPEED_FEEDFORWARD,
             
         },
         .motor_type = GM6020};
@@ -128,6 +168,19 @@ void GimbalInit()
 
     yaw_can_comm = CANCommInit(&yaw_comm_config);
 
+    // 遥控原始值转发接收: 云台板经 0x352 每周期发送, 本板解包写入 dbg_rc_* 供 VarScope 观测
+    CANComm_Init_Config_s rc_comm_config = {
+        .can_config = {
+            .can_handle = &hcan1,
+            .tx_id = 0x353, // 本板不发送该帧, tx 仅占位(与 rx 0x352 区分)
+            .rx_id = 0x352,
+        },
+        .send_data_len = sizeof(RC_Trans_Data_s),
+        .recv_data_len = sizeof(RC_Trans_Data_s),
+        .daemon_count = 10,
+    };
+    rc_can_comm = CANCommInit(&rc_comm_config);
+
     gimbal_pub = PubRegister("gimbal_feed", sizeof(Gimbal_Upload_Data_s));
     gimbal_sub = SubRegister("gimbal_cmd", sizeof(Gimbal_Ctrl_Cmd_s));
 }
@@ -135,9 +188,23 @@ void GimbalInit()
 /* 机器人云台控制核心任务,后续考虑只保留IMU控制,不再需要电机的反馈 */
 void GimbalTask()
 {
+    // 遥控原始值: 云台板 0x352 每周期转发, 解包刷新 dbg_rc_* 供 VarScope 观测(与 yaw 链路在线与否无关)
+    if (CANCommIsOnline(rc_can_comm))
+    {
+        rc_trans_recv = *(RC_Trans_Data_s *)CANCommGet(rc_can_comm);
+        dbg_rc_rocker_l_ = (float)rc_trans_recv.rocker_l_;
+        dbg_rc_rocker_l1 = (float)rc_trans_recv.rocker_l1;
+        dbg_rc_rocker_r_ = (float)rc_trans_recv.rocker_r_;
+        dbg_rc_rocker_r1 = (float)rc_trans_recv.rocker_r1;
+        dbg_rc_dial      = (float)rc_trans_recv.dial;
+    }
+
     if (!CANCommIsOnline(yaw_can_comm))
     {
         DJIMotorStop(yaw_motor);
+        // 通信离线: 清零前馈防残留注入
+        yaw_speed_ff = 0.0f;
+        yaw_current_ff = 0.0f;
 
         yaw_feedback_send.yaw_motor_single_round_angle =
             yaw_motor->measure.angle_single_round;
@@ -152,11 +219,18 @@ void GimbalTask()
 
     yaw_cmd_recv = *(Yaw_Ctrl_Cmd_s *)CANCommGet(yaw_can_comm);
     yaw_speed_feedback_deg_per_sec = yaw_cmd_recv.yaw_gyro * RAD_2_DEGREE;
+    // yaw 速度前馈: 视觉下发 deg/s, 与速度环反馈同域直接注入
+    yaw_speed_ff = yaw_cmd_recv.yaw_vel;
+    // yaw 电流前馈: 视觉下发 rad/s^2 乘 K_ACC_YAW 缩放注入末端
+    yaw_current_ff = K_ACC_YAW * yaw_cmd_recv.yaw_acc;
 
     if (!yaw_cmd_recv.enable ||
         yaw_cmd_recv.mode == GIMBAL_ZERO_FORCE)
     {
         DJIMotorStop(yaw_motor);
+        // 使能/模式非控制态: 清零前馈防残留注入
+        yaw_speed_ff = 0.0f;
+        yaw_current_ff = 0.0f;
     }
     else
     {
