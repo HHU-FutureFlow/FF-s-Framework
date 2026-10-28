@@ -130,4 +130,8 @@ RC_ctrl_t *RemoteControlInit(UART_HandleTypeDef *rc_usart_handle);
  */
 uint8_t RemoteControlIsOnline();
 
+// Plain global monitor variables; valid after RemoteControlInit().
+extern volatile int16_t rc_right_x, rc_right_y, rc_left_x, rc_left_y, rc_dial;
+extern volatile unsigned int rc_switch_left, rc_switch_right, rc_online;
+
 #endif

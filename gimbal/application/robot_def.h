@@ -18,6 +18,7 @@
 
 #define CHASSIS_USE_N630_VESC 0 //1为底盘用N630
 #define CHASSIS_TYPE 0 //0为全向轮底盘，1为麦克纳姆轮底盘
+#define REMOTE_CONTROL_USE_SBUS 0
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
 // #define ONE_BOARD // 单板控制整车

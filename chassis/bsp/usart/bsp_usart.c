@@ -26,6 +26,22 @@ static USARTInstance *usart_instance[DEVICE_USART_CNT] = {NULL};
  *
  * @param _instance instance owned by module,模块拥有的串口实例
  */
+HAL_StatusTypeDef USARTConfigure(UART_HandleTypeDef *handle, uint32_t baud_rate,
+                                uint32_t word_length, uint32_t parity, uint32_t stop_bits)
+{
+    if (handle == NULL) return HAL_ERROR;
+    for (uint8_t i = 0; i < idx; ++i)
+        if (usart_instance[i]->usart_handle == handle) return HAL_BUSY;
+    // CubeMX must initialize this UART and its pins/DMA before this call.
+    if (HAL_UART_GetState(handle) != HAL_UART_STATE_READY) return HAL_BUSY;
+    handle->Init.BaudRate = baud_rate;
+    handle->Init.WordLength = word_length;
+    handle->Init.Parity = parity;
+    handle->Init.StopBits = stop_bits;
+    // READY state avoids re-running MSP initialization or changing DMA routing.
+    return HAL_UART_Init(handle);
+}
+
 void USARTServiceInit(USARTInstance *_instance)
 {
     HAL_UARTEx_ReceiveToIdle_DMA(_instance->usart_handle, _instance->recv_buff, _instance->recv_buff_size);
@@ -107,6 +123,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         { // call the callback function if it is not NULL
             if (usart_instance[i]->module_callback != NULL)
             {
+                usart_instance[i]->recv_size = Size;
                 usart_instance[i]->module_callback();
                 memset(usart_instance[i]->recv_buff, 0, Size); // 接收结束后清空buffer,对于变长数据是必要的
             }
